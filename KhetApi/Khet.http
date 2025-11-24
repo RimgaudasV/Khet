@@ -1,0 +1,6 @@
+@Khet_HostAddress = http://localhost:5105
+
+GET {{Khet_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
