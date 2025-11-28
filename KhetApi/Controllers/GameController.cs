@@ -35,8 +35,4 @@ public class GameController(IGameService gameService) : ControllerBase
         return result;
     }
 
-
-
-
-
 }
