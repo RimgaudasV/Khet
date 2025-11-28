@@ -1,15 +1,42 @@
-﻿using Khet.Entities;
-using Khet.Services;
+﻿using KhetApi.Entities;
+using KhetApi.Entities.Board;
+using KhetApi.Entities.Game;
+using KhetApi.Entities.Move;
+using KhetApi.Interfaces;
+using KhetApi.Requests;
+using KhetApi.Responses;
+using KhetApi.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Khet.Controllers;
+namespace KhetApi.Controllers;
 
 [ApiController]
-public class GameController : ControllerBase
+public class GameController(IGameService gameService) : ControllerBase
 {
-    [HttpGet("/")]
-    public GameState Move(MoveEnitity move)
+    
+    [HttpGet("/startGame")]
+    public BoardEntity StartGame()
     {
-        return GameService.GetState(move);
+        return gameService.StartGame();
     }
+
+    [HttpPost("/makeMove")]
+    public MoveResponse Move(MoveRequest request)
+    {
+        var move = new MoveEntity
+        {
+            Player = request.Player,
+            PieceId = request.PieceId,
+
+        };
+
+        var result = gameService.MakeMove(move);
+
+        return result;
+    }
+
+
+
+
+
 }

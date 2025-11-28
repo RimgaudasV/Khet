@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace Khet.Controllers;
+namespace KhetApi.Controllers;
 
 public class HomeController : ControllerBase
 {
