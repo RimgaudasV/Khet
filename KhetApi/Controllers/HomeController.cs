@@ -9,6 +9,4 @@ public class HomeController : ControllerBase
     {
         return Ok("Khet API is running.");
     }
-
-
 }

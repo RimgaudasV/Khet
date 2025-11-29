@@ -6,8 +6,7 @@ namespace KhetApi.Requests;
 
 public class MoveRequest
 {
-    public Player Player { get; set; }
-    public PieceIdentifier PieceId { get; set; }
-    public BoardPlacement? Position {get; set;}
-    public int? NewRotation { get; set; }
+    public Rotation Rotation { get; set; }
+    public BoardPlacement? OldPosition {get; set;}
+    public BoardPlacement? NewPosition { get; set; }
 }

@@ -9,26 +9,10 @@ namespace KhetApi.Services;
 
 public class GameService : IGameService
 {
-    public BoardEntity StartGame()
+    public GameEntity StartGame()
     {
         var game = new GameEntity();
-        var board = game.Board;
-
-        var dto = new BoardEntity();
-
-        for (int y = 0; y < GameConstants.Rows; y++)
-        {
-            var row = new List<PieceEntity?>();
-
-            for (int x = 0; x < GameConstants.Cols; x++)
-            {
-                row.Add(board.Pieces[y][x]);
-            }
-
-            dto.Pieces.Add(row);
-        }
-
-        return dto;
+        return game;
     }
 
     public MoveResponse MakeMove(MoveEntity move)
