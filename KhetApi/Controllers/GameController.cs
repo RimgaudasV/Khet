@@ -16,10 +16,15 @@ public class GameController(IGameService gameService) : ControllerBase
         return gameService.StartGame();
     }
 
-    [HttpPost("makeMove")]
+    [HttpPost("move")]
     public GameResponse Move(MoveRequest request)
     {
         return gameService.MakeMove(request);
+    }
+    [HttpPost("rotate")]
+    public GameResponse Rotate(RotationRequest request)
+    {
+        return gameService.Rotate(request);
     }
 
     [HttpPost("validMoves")]

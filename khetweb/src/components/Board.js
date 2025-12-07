@@ -1,15 +1,17 @@
 // src/components/Board.js
 import React, { useState } from "react";
 import Piece from "./Piece";
-import { isHighlighted } from "../services/game-service";
+import { rotatePiece, isHighlighted } from "../services/game-service";
 import { getValidMoves, makeMove } from "../services/api-service";
 import Laser from "./Laser";
 import "../styles/Board.css";
 
 export default function Board({game}) {
-    const [moves, setMoves] = useState(null);
+    const [moves, setMoves] = useState([]);
     const [selectedPiece, setSelectedPiece] = useState(null);
     const [laserPath, setLaserPath] = useState([]);
+    const [validRotations, setValidRotations] = useState([]);
+
 
     if (!game) return <div>Loading...</div>;
 
@@ -18,12 +20,10 @@ export default function Board({game}) {
     const handlePieceClick = async (x, y) => {
         const piece = rows[y][x];
         if (!piece || !piece.isMovable) return;
-        //if (piece.owner !== game.currentPlayer) return; 
-
-        // Clicking the same piece again removes highlights
         if (selectedPiece && selectedPiece.x === x && selectedPiece.y === y) {
             setSelectedPiece(null);
-            setMoves(null);
+            setMoves([]);
+            setValidRotations([]);
             return;
         }
 
@@ -31,26 +31,47 @@ export default function Board({game}) {
 
         try {
             const data = await getValidMoves({ x, y }, game.currentPlayer, game.board);
-            setMoves(data);
+            debugger;
+            setMoves(data.validPositions);
+            const validRotationsAsStrings = data.validRotations.map(r => r.toString());
+            setValidRotations(validRotationsAsStrings);
         } catch (err) {
             console.error(err);
         }
     };
 
+    const handleRotate = async (direction) => {
+        if (!selectedPiece) return;
+
+        try {
+            const data = await rotatePiece(selectedPiece, direction, validRotations, game);
+            game.board = data.board;
+            setLaserPath(data.laser ?? []);
+            setSelectedPiece(null);
+            setMoves([]);
+            setValidRotations([]);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+
     const handleMoveClick = async (toX, toY) => {
         if (!selectedPiece) return;
 
         try {
+            debugger;
             const data = await makeMove(
                 game.currentPlayer,
                 game.board,
-                { x: selectedPiece.x, y: selectedPiece.y },
-                { x: toX, y: toY }
+                { X: selectedPiece.x, Y: selectedPiece.y },
+                { X: toX, Y: toY }
             );
             game.board = data.board;
             game.currentPlayer = data.currentPlayer;
             setSelectedPiece(null);
             setMoves(null);
+            setValidRotations([]);
             setLaserPath(data.laser ?? []);
 
             if (data.gameEnded) alert("Game over!");
@@ -62,7 +83,7 @@ export default function Board({game}) {
     return (
         <div className="board-wrapper" style={{ position: "relative" }}>
             <div className="board" style={{ gridTemplateColumns: `repeat(${rows[0].length}, 50px)` }}>
-                {rows.map((row, y) =>
+                {rows.map((row = [], y) =>
                     row.map((cell, x) => {
                         const isMoveTarget = isHighlighted(moves, x, y);
                         const isOwnPiece = cell && cell.owner === game.currentPlayer;
@@ -86,10 +107,19 @@ export default function Board({game}) {
                                 }}
                             >
                                 <Piece cell={cell} />
+                                
+                                {
+                                selectedPiece?.x === x && selectedPiece?.y === y && validRotations.length > 0 && (
+                                    <div className="rotation-overlay">
+                                        <button onClick={() => handleRotate(-1)}>⟲</button>
+                                        <button onClick={() => handleRotate(1)}>⟳</button>
+                                    </div>
+                                )}
                             </div>
                         );
                     })
                 )}
+
             </div>
 
             {/* Laser overlay */}

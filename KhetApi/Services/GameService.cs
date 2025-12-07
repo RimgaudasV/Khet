@@ -44,13 +44,28 @@ public class GameService : IGameService
         };
     }
 
+    public GameResponse Rotate(RotationRequest request)
+    {
+        _board = request.Board;
+        var piece = _board.GetPieceAt(request.CurrentPosition)
+            ?? throw new InvalidOperationException("No piece found at the current position.");
+        piece.Rotation = request.NewRotation;
+
+        var laser = LaserMovement(request.Player);
+
+        return new GameResponse
+        {
+            Board = _board,
+            Laser = laser,
+            CurrentPlayer = GetNextPlayer(request.Player),
+            GameEnded = _gameOver
+        };
+    }
+
     private void DoMove(MoveRequest request)
     {
         var piece = _board.GetPieceAt(request.CurrentPosition)
             ?? throw new InvalidOperationException("No piece found at the current position.");
-
-        if (request.NewRotation is not null)
-            piece.Rotation = request.NewRotation.Value;
 
         if (request.NewPosition is not null)
         {
@@ -198,11 +213,12 @@ public class GameService : IGameService
     {
         _board = request.Board;
         var piece = _board.GetPieceAt(request.CurrentPosition);
-        return new ValidMovesResponse
+        var response =  new ValidMovesResponse
         {
             ValidPositions = GetValidPositions(request.CurrentPosition, piece),
             ValidRotations = GetValidRotations(piece)
         };
+        return response;
 
     }
 

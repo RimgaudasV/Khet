@@ -1,6 +1,8 @@
+import { makeMove, rotate } from "./api-service";
+
 // src/services/game-service.js
 export function isHighlighted(moves, x, y) {
-    return moves?.validPositions?.some(pos => pos.x === x && pos.y === y);
+    return moves?.some(pos => pos.x === x && pos.y === y);
 }
 
 export function isLaserCell(laserPath, x, y) {
@@ -24,4 +26,25 @@ export function getLaserSegments(path, cellSize = 50) {
         });
     }
     return segments;
+}
+
+export async function rotatePiece(selectedPiece, direction, validRotations, game) {
+    if (!selectedPiece) return;
+
+    const { x, y } = selectedPiece;
+    const piece = game.board.pieces[y][x];
+    const currentIndex = validRotations.indexOf(piece.rotation);
+    if (currentIndex === -1) return;
+
+    const nextIndex = (currentIndex + direction + validRotations.length) % validRotations.length;
+    const nextRotation = validRotations[nextIndex];
+
+    const data = await rotate(
+        game.currentPlayer,
+        game.board,
+        { x, y },
+        nextRotation
+    );
+
+    return data;
 }
