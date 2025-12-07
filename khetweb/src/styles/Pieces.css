@@ -1,0 +1,44 @@
+/* src/styles/pieces.css */
+
+.piece {
+    width: 46px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+}
+
+.white { background-color: #eee; }
+.black { background-color: #222; }
+
+/* Shapes */
+.pyramid.LeftDown { clip-path: polygon(100% 0%, 100% 100%, 0% 0%); }
+.pyramid.RightDown { clip-path: polygon(0% 0%, 0% 100%, 100% 0%); }
+.pyramid.LeftUp { clip-path: polygon(100% 0%, 0% 100%, 100% 100%); }
+.pyramid.RightUp { clip-path: polygon(0% 0%, 100% 100%, 0% 100%); }
+.pyramid { clip-path: polygon(0% 0%, 100% 0%, 100% 100%); }
+
+.pharaoh { border-radius: 50%; }
+
+.anubis { width: 12px; }
+
+.sphinx { height: 23px; } /* half of 46px */
+
+
+.scarab.leftup { 
+    clip-path: polygon(0% 100%, 100% 0%, 100% 100%);
+    background-color: currentColor;
+}
+.scarab.rightdown { 
+    clip-path: polygon(0% 0%, 100% 100%, 0% 100%);
+    background-color: currentColor;
+}
+
+
+.scarab {
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

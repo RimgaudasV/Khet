@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { startGame } from "./api";
-import Board from "./Board/Board";
+import { startGame } from "./services/api-service";
+import Board from "./components/Board";
 import './App.css';
 
 function App() {
