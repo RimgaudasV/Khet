@@ -1,5 +1,3 @@
-/* src/styles/pieces.css */
-
 .piece {
     width: 46px;
     height: 46px;
@@ -7,10 +5,13 @@
     align-items: center;
     justify-content: center;
     font-size: 32px;
+    border: 2px solid black; /* black border for all pieces */
+    box-sizing: border-box;   /* include border in size */
 }
 
-.white { background-color: #eee; }
-.black { background-color: #222; }
+/* Player colors */
+.player1 { background-color: #00f; } /* blue */
+.player2 { background-color: #f00; } /* red */
 
 /* Shapes */
 .pyramid.LeftDown { clip-path: polygon(100% 0%, 100% 100%, 0% 0%); }
@@ -25,7 +26,6 @@
 
 .sphinx { height: 23px; } /* half of 46px */
 
-
 .scarab.leftup { 
     clip-path: polygon(0% 100%, 100% 0%, 100% 100%);
     background-color: currentColor;
@@ -34,7 +34,6 @@
     clip-path: polygon(0% 0%, 100% 100%, 0% 100%);
     background-color: currentColor;
 }
-
 
 .scarab {
     font-size: 32px;

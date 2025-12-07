@@ -1,6 +1,4 @@
-﻿using KhetApi.Entities;
-using KhetApi.Entities.Board;
-using KhetApi.Interfaces;
+﻿using KhetApi.Interfaces;
 using KhetApi.Requests;
 using KhetApi.Responses;
 using Microsoft.AspNetCore.Mvc;

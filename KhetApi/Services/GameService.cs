@@ -54,12 +54,12 @@ public class GameService : IGameService
     private List<Position> LaserMovement(Player player)
     {
         var currentPosition = player == Player.Player1
-            ? new Position(0, 0)
-            : new Position(9, 7);
+            ? new Position(9, 7)
+            : new Position(0, 0);
 
         var laserDirection = player == Player.Player1
-            ? LaserDirection.Down
-            : LaserDirection.Up;
+            ? LaserDirection.Up
+            : LaserDirection.Down;
 
         var laserPath = new List<Position> { currentPosition };
 
@@ -205,7 +205,6 @@ public class GameService : IGameService
         };
 
     }
-
 
     public List<Position> GetValidPositions(Position position, PieceEntity piece)
     {

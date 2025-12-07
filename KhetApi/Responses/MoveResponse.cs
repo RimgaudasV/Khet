@@ -10,3 +10,4 @@ public class MoveResponse
     public PieceEntity? DefeatedPiece { get; set; }
     public Player NextPlayer { get; set; }
 }
+

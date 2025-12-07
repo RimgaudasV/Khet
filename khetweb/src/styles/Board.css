@@ -12,6 +12,9 @@
     align-items: center;
     justify-content: center;
     font-weight: bold;
+}
+
+.board-cell.clickable {
     cursor: pointer;
 }
 
