@@ -1,58 +1,87 @@
-// Piece.js
 import React from "react";
 
-export default function Piece({ cell }) {
+export function renderPiece(cell) {
     if (!cell) return null;
 
-    const pieceLetters = {
-        Anubis: "A",
-        Scarab: "S",
-        Pharaoh: "PH",
-        Pyramid: "PY",
-        Sphinx: "SP"
+    const isWhite = cell.isWhite;
+    const color = isWhite ? "#eee" : "#222";
+
+    const size = 46;
+
+    const getPyramidClipPath = () => {
+        switch (cell.rotation) {
+            case "LeftDown":
+                // NUKERPAM apatinį KAIRĮ trikampį
+                return "polygon(100% 0%, 100% 100%, 0% 0%)";
+            case "RightDown":
+                // NUKERPAM apatinį DEŠINĮ trikampį
+                return "polygon(0% 0%, 0% 100%, 100% 0%)";
+            case "LeftUp":
+                // NUKERPAM viršutinį KAIRĮ trikampį
+                return "polygon(100% 0%, 0% 100%, 100% 100%)";
+            case "RightUp":
+                // NUKERPAM viršutinį DEŠINĮ trikampį
+                return "polygon(0% 0%, 100% 100%, 0% 100%)";
+            default:
+                return "polygon(0% 0%, 100% 0%, 100% 100%)";
+        }
     };
 
-    const arrow = {
-        Up: "↑",
-        Down: "↓",
-        Left: "←",
-        Right: "→"
-    };
+    switch (cell.type) {
+        case "Pyramid":
+            return (
+                <div style={{
+                    width: size,
+                    height: size,
+                    background: color,
+                    clipPath: getPyramidClipPath()
+                }} />
+            );
 
-    const containerStyle = {
-        width: "100%",
-        height: "100%",
-        borderRadius: "8px",
-        background: "#d9d9d9",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: "14px",
-        fontWeight: "bold",
-        position: "relative"
-    };
+        case "Scarab":
+            return (
+                <div style={{
+                    width: size,
+                    height: size,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "32px",
+                    color
+                }}>
+                    {cell.rotation === "LeftUp" || cell.rotation === "RightDown" ? "\\" : "/"}
+                </div>
+            );
 
-    const arrowStyle = {
-        position: "absolute",
-        bottom: "2px",
-        fontSize: "14px"
-    };
+        case "Pharaoh":
+            return (
+                <div style={{
+                    width: size,
+                    height: size,
+                    borderRadius: "50%",
+                    background: color
+                }} />
+            );
 
-    return React.createElement(
-        "div",
-        { style: containerStyle },
-        [
-            React.createElement(
-                "div",
-                { key: "letter" },
-                pieceLetters[cell.Type]
-            ),
-            React.createElement(
-                "div",
-                { key: "arrow", style: arrowStyle },
-                arrow[cell.Rotation]
-            )
-        ]
-    );
+        case "Anubis":
+            return (
+                <div style={{
+                    width: 12,
+                    height: size,
+                    background: color
+                }} />
+            );
+
+        case "Sphinx":
+            return (
+                <div style={{
+                    width: size,
+                    height: size / 2,
+                    background: color
+                }} />
+            );
+
+        default:
+            return null;
+    }
 }

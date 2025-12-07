@@ -18,7 +18,9 @@ public class GameService : IGameService
         return new GameResponse
         {
             Board = board,
-            CurrentPlayer = Player.Player1
+            CurrentPlayer = Player.Player1,
+            GameEnded = false,
+            Laser = new List<Position>()
         };
     }
 
@@ -59,7 +61,7 @@ public class GameService : IGameService
             ? LaserDirection.Down
             : LaserDirection.Up;
 
-        List<Position> laserPath = new();
+        var laserPath = new List<Position> { currentPosition };
 
         while (true)
         {
@@ -97,10 +99,6 @@ public class GameService : IGameService
                     break;
                 }
             }
-            else
-            {
-                break;
-            }
         }
 
         return laserPath;
@@ -133,14 +131,14 @@ public class GameService : IGameService
                 => new ImpactResult(LaserDirection.Right, false, false),
 
             (LaserDirection.Left, Rotation.RightDown, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Up, false, false),
-            (LaserDirection.Left, Rotation.RightUp, PieceType.Pyramid)
                 => new ImpactResult(LaserDirection.Down, false, false),
+            (LaserDirection.Left, Rotation.RightUp, PieceType.Pyramid)
+                => new ImpactResult(LaserDirection.Up, false, false),
 
             (LaserDirection.Right, Rotation.LeftDown, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Up, false, false),
-            (LaserDirection.Right, Rotation.LeftUp, PieceType.Pyramid)
                 => new ImpactResult(LaserDirection.Down, false, false),
+            (LaserDirection.Right, Rotation.LeftUp, PieceType.Pyramid)
+                => new ImpactResult(LaserDirection.Up, false, false),
 
             // PYRAMID BACKSIDES → destroy
             (LaserDirection.Up, Rotation.Up, PieceType.Pyramid)

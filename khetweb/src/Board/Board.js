@@ -1,33 +1,22 @@
 import React, { useState } from "react";
+import {renderPiece} from "./Piece.js";
 
 export default function Board({ board, player }) {
     const [moves, setMoves] = useState(null);
     const [selectedPiece, setSelectedPiece] = useState(null);
+    const [laserPath, setLaserPath] = useState([]);
+
 
     if (!board) return <div>Loading...</div>;
 
     const rows = board.board.pieces;
-    const pieceLabels = {
-        Sphinx: "Sp",
-        Pharaoh: "Ph",
-        Anubis: "A",
-        Pyramid: "P",
-        Scarab: "S"
-    };
-
-    const rotationArrows = {
-        Up: "↑",
-        Down: "↓",
-        Left: "←",
-        Right: "→",
-        LeftUp: "↖",
-        RightUp: "↗",
-        LeftDown: "↙",
-        RightDown: "↘"
-    };
 
     const isHighlighted = (x, y) =>
         moves?.validPositions?.some(pos => pos.x === x && pos.y === y);
+
+    const isLaserCell = (x, y) =>
+        laserPath?.some(p => p.x === x && p.y === y);
+
 
     const handlePieceClick = async (x, y) => {
         const piece = rows[y][x];
@@ -41,7 +30,7 @@ export default function Board({ board, player }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     currentPosition: { x, y },
-                    player,
+                    player: player,
                     board: board.board
                 })
             });
@@ -60,11 +49,12 @@ export default function Board({ board, player }) {
         if (!selectedPiece) return;
 
         try {
+            debugger;
             const res = await fetch("https://localhost:7153/game/makeMove", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    player,
+                    player: player,
                     board: board.board,
                     currentPosition: { x: selectedPiece.x, y: selectedPiece.y },
                     newPosition: { x: toX, y: toY },
@@ -75,13 +65,18 @@ export default function Board({ board, player }) {
             if (!res.ok) throw new Error("Failed to make move");
 
             const data = await res.json();
+            debugger;
             board.board = data.board;
             board.player = data.currentPlayer;
+            console.log(board.player);
+
 
             setSelectedPiece(null);
             setMoves(null);
 
-            if (data.laser) console.log("Laser path:", data.laser);
+            // ✅ Save laser path
+            setLaserPath(data.laser ?? []);
+
             if (data.gameEnded) alert("Game over!");
 
         } catch (err) {
@@ -97,7 +92,12 @@ export default function Board({ board, player }) {
         }}>
             {rows.map((row, y) =>
                 row.map((cell, x) => {
-                    const bgColor = isHighlighted(x, y) ? "#aaf" : "#fff";
+                    const bgColor = isLaserCell(x, y)
+                        ? "#f88"          // red laser
+                        : isHighlighted(x, y)
+                            ? "#aaf"      // blue valid move
+                            : "#fff";
+
 
                     return (
                         <div key={`${x}-${y}`}
@@ -119,7 +119,7 @@ export default function Board({ board, player }) {
                                  fontWeight: "bold",
                                  cursor: isHighlighted(x, y) || cell ? "pointer" : "default"
                              }}>
-                            {cell ? (pieceLabels[cell.type] || "?") + (rotationArrows[cell.rotation] || "") : ""}
+                            {renderPiece(cell)}
                         </div>
                     );
                 })

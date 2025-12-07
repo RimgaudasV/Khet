@@ -36,28 +36,28 @@ public class BoardEntity
         SetPiece(5, 7, PieceType.Anubis, Player.Player2, Rotation.Up, true);
 
         // Pyramids
-        SetPiece(7, 0, PieceType.Pyramid, Player.Player1, Rotation.Right, true);
-        SetPiece(2, 1, PieceType.Pyramid, Player.Player1, Rotation.Up, true);
-        SetPiece(0, 3, PieceType.Pyramid, Player.Player1, Rotation.Up, true);
-        SetPiece(0, 4, PieceType.Pyramid, Player.Player1, Rotation.Left, true);
-        SetPiece(7, 3, PieceType.Pyramid, Player.Player1, Rotation.Right, true);
-        SetPiece(7, 4, PieceType.Pyramid, Player.Player2, Rotation.Left, true);
-        SetPiece(6, 5, PieceType.Pyramid, Player.Player2, Rotation.Down, true);
+        SetPiece(7, 0, PieceType.Pyramid, Player.Player1, Rotation.RightDown, true);
+        SetPiece(2, 1, PieceType.Pyramid, Player.Player1, Rotation.LeftDown, true);
+        SetPiece(0, 3, PieceType.Pyramid, Player.Player1, Rotation.RightUp, true);
+        SetPiece(0, 4, PieceType.Pyramid, Player.Player1, Rotation.RightDown, true);
+        SetPiece(7, 3, PieceType.Pyramid, Player.Player1, Rotation.RightDown, true);
+        SetPiece(7, 4, PieceType.Pyramid, Player.Player2, Rotation.RightUp, true);
+        SetPiece(6, 5, PieceType.Pyramid, Player.Player2, Rotation.RightDown, true);
 
-        SetPiece(2, 7, PieceType.Pyramid, Player.Player2, Rotation.Left, true);
-        SetPiece(7, 6, PieceType.Pyramid, Player.Player2, Rotation.Down, true);
-        SetPiece(9, 4, PieceType.Pyramid, Player.Player2, Rotation.Down, true);
-        SetPiece(9, 3, PieceType.Pyramid, Player.Player2, Rotation.Right, true);
-        SetPiece(2, 4, PieceType.Pyramid, Player.Player2, Rotation.Down, true);
-        SetPiece(2, 3, PieceType.Pyramid, Player.Player2, Rotation.Down, true);
-        SetPiece(3, 2, PieceType.Pyramid, Player.Player2, Rotation.Right, true);
+        SetPiece(2, 7, PieceType.Pyramid, Player.Player2, Rotation.LeftUp, true);
+        SetPiece(7, 6, PieceType.Pyramid, Player.Player2, Rotation.RightUp, true);
+        SetPiece(9, 4, PieceType.Pyramid, Player.Player2, Rotation.LeftDown, true);
+        SetPiece(9, 3, PieceType.Pyramid, Player.Player2, Rotation.LeftUp, true);
+        SetPiece(2, 4, PieceType.Pyramid, Player.Player2, Rotation.LeftUp, true);
+        SetPiece(2, 3, PieceType.Pyramid, Player.Player2, Rotation.LeftDown, true);
+        SetPiece(3, 2, PieceType.Pyramid, Player.Player2, Rotation.LeftUp, true);
 
         // Scarabs
-        SetPiece(4, 3, PieceType.Scarab, Player.Player1, Rotation.Up, true);
-        SetPiece(5, 3, PieceType.Scarab, Player.Player1, Rotation.Right, true);
+        SetPiece(4, 3, PieceType.Scarab, Player.Player1, Rotation.RightUp, true);
+        SetPiece(5, 3, PieceType.Scarab, Player.Player1, Rotation.LeftUp, true);
         
-        SetPiece(4, 4, PieceType.Scarab, Player.Player2, Rotation.Down, true);
-        SetPiece(5, 4, PieceType.Scarab, Player.Player2, Rotation.Left, true);
+        SetPiece(4, 4, PieceType.Scarab, Player.Player2, Rotation.LeftUp, true);
+        SetPiece(5, 4, PieceType.Scarab, Player.Player2, Rotation.RightUp, true);
     }
 
     private void SetPiece(int x, int y, PieceType type, Player owner, Rotation rot, bool isMovable)
