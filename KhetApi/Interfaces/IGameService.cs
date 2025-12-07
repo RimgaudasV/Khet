@@ -1,7 +1,4 @@
-﻿using KhetApi.Controllers;
-using KhetApi.Entities;
-using KhetApi.Entities.Board;
-using KhetApi.Requests;
+﻿using KhetApi.Requests;
 using KhetApi.Responses;
 
 namespace KhetApi.Interfaces;

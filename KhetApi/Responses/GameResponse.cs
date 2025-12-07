@@ -1,10 +1,10 @@
-﻿using KhetApi.Entities;
-using KhetApi.Entities.Board;
+﻿using KhetApi.Models.Board;
+using KhetApi.Models.Player;
 
 namespace KhetApi.Responses;
 public class GameResponse
 {
-    public BoardEntity Board { get; set; }
+    public BoardModel Board { get; set; }
     public Player CurrentPlayer { get; set; }
     public bool GameEnded { get; set; } = false;
     public List<Position> Laser { get; internal set; }

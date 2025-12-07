@@ -1,7 +1,7 @@
-﻿using KhetApi.Entities;
-using KhetApi.Entities.Board;
-using KhetApi.Entities.Piece;
-using KhetApi.Interfaces;
+﻿using KhetApi.Interfaces;
+using KhetApi.Models.Board;
+using KhetApi.Models.Piece;
+using KhetApi.Models.Player;
 using KhetApi.Requests;
 using KhetApi.Responses;
 
@@ -9,12 +9,15 @@ namespace KhetApi.Services;
 
 public class GameService : IGameService
 {
-    private BoardEntity _board;
+    private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
+    private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
+
+    private BoardModel _board;
     private bool _gameOver;
 
     public GameResponse StartGame()
     {
-        var board = new BoardEntity();
+        var board = new BoardModel();
         return new GameResponse
         {
             Board = board,
@@ -128,7 +131,7 @@ public class GameService : IGameService
         _ => throw new InvalidOperationException("Invalid laser direction.")
     };
 
-    private ImpactResult CalculateImpact(LaserDirection laserDir, PieceEntity piece)
+    private ImpactResult CalculateImpact(LaserDirection laserDir, PieceModel piece)
     {
         return (laserDir, piece.Rotation, piece.Type) switch
         {
@@ -217,46 +220,30 @@ public class GameService : IGameService
 
     }
 
-    public List<Position> GetValidPositions(Position position, PieceEntity piece)
+    public List<Position> GetValidPositions(Position position, PieceModel piece)
     {
         var validPositions = new List<Position>();
 
         if (piece == null || !piece.IsMovable)
             return validPositions;
 
-        // Directions: N, NE, E, SE, S, SW, W, NW
-        int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
-        int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
-
         for (int i = 0; i < 8; i++)
         {
             int newX = position.X + dx[i];
             int newY = position.Y + dy[i];
 
-            // Check if inside board
-            if (!_board.IsInsideBoard(new Position(newX, newY)))
+            var newPos = new Position(newX, newY);
+
+            if (!_board.IsInsideBoard(newPos))
                 continue;
 
-            var targetPiece = _board.GetPieceAt(new Position(newX, newY));
+            var targetPiece = _board.GetPieceAt(newPos);
 
-            if (targetPiece == null)
+            if (targetPiece == null ||
+               (piece.Type == PieceType.Scarab &&
+                (targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)))
             {
-                // Empty square, always valid
-                validPositions.Add(new Position(newX, newY));
-            }
-            else if (piece.Type == PieceType.Scarab)
-            {
-                // Scarab can swap with Pyramid or Anubis, any color
-                if (targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)
-                {
-                    validPositions.Add(new Position(newX, newY));
-                }
-                // Scarab cannot move into Pharaoh or another Scarab
-            }
-            else
-            {
-                // Other pieces cannot move into occupied squares
-                continue;
+                validPositions.Add(newPos);
             }
         }
 
@@ -264,7 +251,10 @@ public class GameService : IGameService
     }
 
 
-    public List<Rotation> GetValidRotations(PieceEntity piece)
+
+
+
+    public List<Rotation> GetValidRotations(PieceModel piece)
     {
         return piece.Type switch
         {
@@ -277,5 +267,8 @@ public class GameService : IGameService
 
 
 }
+
+
+
 
 public record ImpactResult(LaserDirection? NewDirection, bool DestroyPiece, bool GameOver);

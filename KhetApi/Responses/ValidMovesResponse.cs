@@ -1,5 +1,5 @@
-﻿using KhetApi.Entities.Board;
-using KhetApi.Entities.Piece;
+﻿using KhetApi.Models.Board;
+using KhetApi.Models.Piece;
 
 namespace KhetApi.Responses;
 
