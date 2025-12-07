@@ -8,49 +8,6 @@ export function isLaserCell(laserPath, x, y) {
 }
 
 
-// src/services/game-service.js
-
-export function getPieceClass(cell) {
-    if (!cell) return "";
-
-    const classes = ["piece"];
-
-    switch (cell.type) {
-        case "Pyramid": classes.push("pyramid"); break;
-        case "Scarab": classes.push("scarab"); break;
-        case "Pharaoh": classes.push("pharaoh"); break;
-        case "Anubis": classes.push("anubis"); break;
-        case "Sphinx": classes.push("sphinx"); break;
-        default: break;
-    }
-
-    classes.push(cell.isWhite ? "white" : "black");
-
-    return classes.join(" ");
-}
-
-// Only for Scarab content
-export function getPieceContent(cell) {
-    if (!cell) return null;
-
-    if (cell.type === "Scarab") {
-        return cell.rotation === "LeftUp" || cell.rotation === "RightDown" ? "\\" : "/";
-    }
-
-    return null;
-}
-
-
-export function getPyramidClipPath(rotation) {
-    switch (rotation) {
-        case "LeftDown": return "polygon(100% 0%, 100% 100%, 0% 0%)";
-        case "RightDown": return "polygon(0% 0%, 0% 100%, 100% 0%)";
-        case "LeftUp": return "polygon(100% 0%, 0% 100%, 100% 100%)";
-        case "RightUp": return "polygon(0% 0%, 100% 100%, 0% 100%)";
-        default: return "polygon(0% 0%, 100% 0%, 100% 100%)";
-    }
-}
-
 export function getLaserSegments(path, cellSize = 50) {
     if (!path || path.length < 2) return [];
     

@@ -132,9 +132,7 @@ public class GameService : IGameService
     {
         return (laserDir, piece.Rotation, piece.Type) switch
         {
-            // ===============================
             // PYRAMID REFLECTIONS
-            // ===============================
             (LaserDirection.Up, Rotation.LeftDown, PieceType.Pyramid)
                 => new ImpactResult(LaserDirection.Left, false, false),
             (LaserDirection.Up, Rotation.RightDown, PieceType.Pyramid)
@@ -165,39 +163,37 @@ public class GameService : IGameService
             (LaserDirection.Right, Rotation.Right, PieceType.Pyramid)
                 => new ImpactResult(laserDir, true, false),
 
-            // ===============================
+
             // SCARAB REFLECTIONS
-            // ===============================
             // RightUp rotation
             (LaserDirection.Up, Rotation.RightUp, PieceType.Scarab)
-            or (LaserDirection.Left, Rotation.RightUp, PieceType.Scarab)
-                => new ImpactResult(LaserDirection.Right, false, false),
-
-            (LaserDirection.Right, Rotation.RightUp, PieceType.Scarab)
-            or (LaserDirection.Down, Rotation.RightUp, PieceType.Scarab)
+                => new ImpactResult(LaserDirection.Left, false, false),
+            (LaserDirection.Left, Rotation.RightUp, PieceType.Scarab)
                 => new ImpactResult(LaserDirection.Up, false, false),
+            (LaserDirection.Right, Rotation.RightUp, PieceType.Scarab)
+                => new ImpactResult(LaserDirection.Down, false, false),
+            (LaserDirection.Down, Rotation.RightUp, PieceType.Scarab)
+                => new ImpactResult(LaserDirection.Right, false, false),
 
             // LeftUp rotation
             (LaserDirection.Up, Rotation.LeftUp, PieceType.Scarab)
-            or (LaserDirection.Right, Rotation.LeftUp, PieceType.Scarab)
-                => new ImpactResult(LaserDirection.Left, false, false),
-
-            (LaserDirection.Left, Rotation.LeftUp, PieceType.Scarab)
-            or (LaserDirection.Down, Rotation.LeftUp, PieceType.Scarab)
+                => new ImpactResult(LaserDirection.Right, false, false),
+            (LaserDirection.Right, Rotation.LeftUp, PieceType.Scarab)
                 => new ImpactResult(LaserDirection.Up, false, false),
 
-            // ===============================
+            (LaserDirection.Left, Rotation.LeftUp, PieceType.Scarab)
+                => new ImpactResult(LaserDirection.Down, false, false),
+            (LaserDirection.Down, Rotation.LeftUp, PieceType.Scarab)
+                => new ImpactResult(LaserDirection.Left, false, false),
+
             // ANUBIS / SIDE BLOCKS → end move
-            // ===============================
             (_, _, PieceType.Anubis)
                 => new ImpactResult(null, false, false),
 
             (_, _, PieceType.Pharaoh)
                 => new ImpactResult(null, true, true),
 
-            // ===============================
             // ALL OTHER PIECES → destroyed
-            // ===============================
             (_, _, _)
                 => new ImpactResult(laserDir, true, false)
         };
