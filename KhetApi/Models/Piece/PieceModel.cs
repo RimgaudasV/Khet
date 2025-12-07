@@ -1,13 +1,12 @@
-﻿using KhetApi.Entities.Board;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-namespace KhetApi.Entities.Piece;
-public class PieceEntity
+namespace KhetApi.Models.Piece;
+public class PieceModel
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public PieceType Type { get; set; }
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Rotation Rotation { get; set; }
     public bool IsMovable { get; set; }
-    public Player Owner { get; set; }
+    public Player.Player Owner { get; set; }
 }

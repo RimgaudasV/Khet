@@ -1,0 +1,14 @@
+/* src/styles/laser.css */
+.laser-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none; /* click-through */
+    z-index: 10; /* on top of pieces */
+}
+
+.laser-line {
+    stroke: red;
+    stroke-width: 4;
+    stroke-linecap: round;
+}

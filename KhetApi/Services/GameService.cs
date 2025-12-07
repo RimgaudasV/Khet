@@ -1,7 +1,7 @@
-﻿using KhetApi.Entities;
-using KhetApi.Entities.Board;
-using KhetApi.Entities.Piece;
-using KhetApi.Interfaces;
+﻿using KhetApi.Interfaces;
+using KhetApi.Models.Board;
+using KhetApi.Models.Piece;
+using KhetApi.Models.Player;
 using KhetApi.Requests;
 using KhetApi.Responses;
 
@@ -9,12 +9,15 @@ namespace KhetApi.Services;
 
 public class GameService : IGameService
 {
-    private BoardEntity _board;
+    private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
+    private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
+
+    private BoardModel _board;
     private bool _gameOver;
 
     public GameResponse StartGame()
     {
-        var board = new BoardEntity();
+        var board = new BoardModel();
         return new GameResponse
         {
             Board = board,
@@ -28,17 +31,7 @@ public class GameService : IGameService
     {
         _board = request.Board;
 
-        var piece = _board.GetPieceAt(request.CurrentPosition)
-            ?? throw new InvalidOperationException("No piece found at the current position.");
-
-        if (request.NewRotation is not null)
-            piece.Rotation = request.NewRotation.Value;
-
-        if (request.NewPosition is not null)
-        {
-            _board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
-            _board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = null;
-        }
+        DoMove(request);
 
         var laser = LaserMovement(request.Player);
 
@@ -51,15 +44,40 @@ public class GameService : IGameService
         };
     }
 
+    private void DoMove(MoveRequest request)
+    {
+        var piece = _board.GetPieceAt(request.CurrentPosition)
+            ?? throw new InvalidOperationException("No piece found at the current position.");
+
+        if (request.NewRotation is not null)
+            piece.Rotation = request.NewRotation.Value;
+
+        if (request.NewPosition is not null)
+        {
+            var targetPiece = _board.GetPieceAt(request.NewPosition);
+            if (piece.Type == PieceType.Scarab && targetPiece is not null)
+            {
+                _board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = targetPiece;
+                _board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
+
+            }
+            else
+            {
+                _board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
+                _board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = null;
+            }
+        }
+    }
+
     private List<Position> LaserMovement(Player player)
     {
         var currentPosition = player == Player.Player1
-            ? new Position(0, 0)
-            : new Position(9, 7);
+            ? new Position(9, 7)
+            : new Position(0, 0);
 
         var laserDirection = player == Player.Player1
-            ? LaserDirection.Down
-            : LaserDirection.Up;
+            ? LaserDirection.Up
+            : LaserDirection.Down;
 
         var laserPath = new List<Position> { currentPosition };
 
@@ -113,82 +131,64 @@ public class GameService : IGameService
         _ => throw new InvalidOperationException("Invalid laser direction.")
     };
 
-    private ImpactResult CalculateImpact(LaserDirection laserDir, PieceEntity piece)
+    private ImpactResult CalculateImpact(LaserDirection laserDir, PieceModel piece)
     {
         return (laserDir, piece.Rotation, piece.Type) switch
         {
-            // ===============================
             // PYRAMID REFLECTIONS
-            // ===============================
-            (LaserDirection.Up, Rotation.LeftDown, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Left, false, false),
-            (LaserDirection.Up, Rotation.RightDown, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Right, false, false),
+            (LaserDirection.Up, Rotation.LeftDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Left, false, false),
+            (LaserDirection.Up, Rotation.RightDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Right, false, false),
 
-            (LaserDirection.Down, Rotation.LeftUp, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Left, false, false),
-            (LaserDirection.Down, Rotation.RightUp, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Right, false, false),
+            (LaserDirection.Down, Rotation.LeftUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Left, false, false),
+            (LaserDirection.Down, Rotation.RightUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Right, false, false),
 
-            (LaserDirection.Left, Rotation.RightDown, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Left, Rotation.RightUp, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Up, false, false),
+            (LaserDirection.Left, Rotation.RightDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Down, false, false),
+            (LaserDirection.Left, Rotation.RightUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Up, false, false),
 
-            (LaserDirection.Right, Rotation.LeftDown, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Right, Rotation.LeftUp, PieceType.Pyramid)
-                => new ImpactResult(LaserDirection.Up, false, false),
+            (LaserDirection.Right, Rotation.LeftDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Down, false, false),
+            (LaserDirection.Right, Rotation.LeftUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Up, false, false),
 
             // PYRAMID BACKSIDES → destroy
-            (LaserDirection.Up, Rotation.Up, PieceType.Pyramid)
-                => new ImpactResult(laserDir, true, false),
-            (LaserDirection.Down, Rotation.Down, PieceType.Pyramid)
-                => new ImpactResult(laserDir, true, false),
-            (LaserDirection.Left, Rotation.Left, PieceType.Pyramid)
-                => new ImpactResult(laserDir, true, false),
-            (LaserDirection.Right, Rotation.Right, PieceType.Pyramid)
-                => new ImpactResult(laserDir, true, false),
+            (LaserDirection.Up, Rotation.Up, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
+            (LaserDirection.Down, Rotation.Down, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
+            (LaserDirection.Left, Rotation.Left, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
+            (LaserDirection.Right, Rotation.Right, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
 
-            // ===============================
             // SCARAB REFLECTIONS
-            // ===============================
             // RightUp rotation
-            (LaserDirection.Up, Rotation.RightUp, PieceType.Scarab)
-            or (LaserDirection.Left, Rotation.RightUp, PieceType.Scarab)
-                => new ImpactResult(LaserDirection.Right, false, false),
-
-            (LaserDirection.Right, Rotation.RightUp, PieceType.Scarab)
-            or (LaserDirection.Down, Rotation.RightUp, PieceType.Scarab)
-                => new ImpactResult(LaserDirection.Up, false, false),
+            (LaserDirection.Up, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Left, false, false),
+            (LaserDirection.Left, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Up, false, false),
+            (LaserDirection.Right, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Down, false, false),
+            (LaserDirection.Down, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Right, false, false),
 
             // LeftUp rotation
-            (LaserDirection.Up, Rotation.LeftUp, PieceType.Scarab)
-            or (LaserDirection.Right, Rotation.LeftUp, PieceType.Scarab)
-                => new ImpactResult(LaserDirection.Left, false, false),
+            (LaserDirection.Up, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Right, false, false),
+            (LaserDirection.Right, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Up, false, false),
 
-            (LaserDirection.Left, Rotation.LeftUp, PieceType.Scarab)
-            or (LaserDirection.Down, Rotation.LeftUp, PieceType.Scarab)
-                => new ImpactResult(LaserDirection.Up, false, false),
+            (LaserDirection.Left, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Down, false, false),
+            (LaserDirection.Down, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Left, false, false),
 
-            // ===============================
-            // ANUBIS / SIDE BLOCKS → end move
-            // ===============================
-            (_, _, PieceType.Anubis)
-                => new ImpactResult(null, false, false),
 
-            (_, _, PieceType.Pharaoh)
-                => new ImpactResult(null, true, true),
+            // Sphinx
+            (_, _, PieceType.Sphinx) => new ImpactResult(null, false, false),
 
-            // ===============================
+            // ANUBIS 
+            (_, _, PieceType.Anubis) when
+                laserDir == LaserDirection.Right && (piece.Rotation == Rotation.Right || piece.Rotation == Rotation.Left) ||
+                laserDir == LaserDirection.Left && (piece.Rotation == Rotation.Left || piece.Rotation == Rotation.Right) ||
+                laserDir == LaserDirection.Up && (piece.Rotation == Rotation.Up || piece.Rotation == Rotation.Down) ||
+                laserDir == LaserDirection.Down && (piece.Rotation == Rotation.Down || piece.Rotation == Rotation.Up)
+                => new ImpactResult(null, true, false),
+
+            (_, _, PieceType.Anubis) => new ImpactResult(null, false, false),
+
+            // PHARAOH → game over
+            (_, _, PieceType.Pharaoh) => new ImpactResult(null, true, true),
+
             // ALL OTHER PIECES → destroyed
-            // ===============================
-            (_, _, _)
-                => new ImpactResult(laserDir, true, false)
+            (_, _, _) => new ImpactResult(laserDir, true, false)
         };
     }
-
-
 
 
     public Player GetNextPlayer(Player player)
@@ -206,47 +206,30 @@ public class GameService : IGameService
 
     }
 
-
-    public List<Position> GetValidPositions(Position position, PieceEntity piece)
+    public List<Position> GetValidPositions(Position position, PieceModel piece)
     {
         var validPositions = new List<Position>();
 
         if (piece == null || !piece.IsMovable)
             return validPositions;
 
-        // Directions: N, NE, E, SE, S, SW, W, NW
-        int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
-        int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
-
         for (int i = 0; i < 8; i++)
         {
             int newX = position.X + dx[i];
             int newY = position.Y + dy[i];
 
-            // Check if inside board
-            if (!_board.IsInsideBoard(new Position(newX, newY)))
+            var newPos = new Position(newX, newY);
+
+            if (!_board.IsInsideBoard(newPos))
                 continue;
 
-            var targetPiece = _board.GetPieceAt(new Position(newX, newY));
+            var targetPiece = _board.GetPieceAt(newPos);
 
-            if (targetPiece == null)
+            if (targetPiece == null ||
+               (piece.Type == PieceType.Scarab &&
+                (targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)))
             {
-                // Empty square, always valid
-                validPositions.Add(new Position(newX, newY));
-            }
-            else if (piece.Type == PieceType.Scarab)
-            {
-                // Scarab can swap with Pyramid or Anubis, any color
-                if (targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)
-                {
-                    validPositions.Add(new Position(newX, newY));
-                }
-                // Scarab cannot move into Pharaoh or another Scarab
-            }
-            else
-            {
-                // Other pieces cannot move into occupied squares
-                continue;
+                validPositions.Add(newPos);
             }
         }
 
@@ -254,7 +237,10 @@ public class GameService : IGameService
     }
 
 
-    public List<Rotation> GetValidRotations(PieceEntity piece)
+
+
+
+    public List<Rotation> GetValidRotations(PieceModel piece)
     {
         return piece.Type switch
         {
@@ -267,5 +253,8 @@ public class GameService : IGameService
 
 
 }
+
+
+
 
 public record ImpactResult(LaserDirection? NewDirection, bool DestroyPiece, bool GameOver);

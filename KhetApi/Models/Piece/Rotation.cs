@@ -1,4 +1,4 @@
-﻿namespace KhetApi.Entities.Piece;
+﻿namespace KhetApi.Models.Piece;
 public enum Rotation
 {
     Up,

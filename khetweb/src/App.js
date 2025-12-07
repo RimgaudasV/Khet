@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { startGame } from "./api";
-import Board from "./Board/Board";
+import { startGame } from "./services/api-service";
+import Board from "./components/Board";
 import './App.css';
 
 function App() {
-    const [board, setBoard] = useState(null);
+    const [game, setGame] = useState(null);
 
     useEffect(() => {
-        startGame().then(setBoard).catch(console.error);
+        startGame().then(setGame).catch(console.error);
     }, []);
 
     return (
         <div style={{ padding: 20 }}>
             <h1>Khet Board</h1>
-            <Board board={board} />
+            <Board game={game} />
         </div>
     );
 }

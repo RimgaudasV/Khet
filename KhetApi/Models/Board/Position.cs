@@ -1,4 +1,4 @@
-﻿namespace KhetApi.Entities.Board;
+﻿namespace KhetApi.Models.Board;
 
 
 public class Position
