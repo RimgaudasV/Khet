@@ -1,12 +1,14 @@
-﻿using KhetApi.Entities.Board;
-using KhetApi.Entities.Game;
-using KhetApi.Entities.Move;
+﻿using KhetApi.Controllers;
+using KhetApi.Entities;
+using KhetApi.Entities.Board;
+using KhetApi.Requests;
 using KhetApi.Responses;
 
 namespace KhetApi.Interfaces;
 
 public interface IGameService
 {
-    public GameEntity StartGame();
-    public MoveResponse MakeMove(MoveEntity move);
+    GameResponse StartGame();
+    GameResponse MakeMove(MoveRequest request);
+    ValidMovesResponse GetValidMoves(ValidMoveRequest request);
 }

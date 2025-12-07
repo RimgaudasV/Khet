@@ -1,11 +1,11 @@
 ﻿namespace KhetApi.Entities.Board;
 
 
-public class BoardPlacement
+public class Position
 {
     public int X { get; set; }
     public int Y { get; set; }
-    public BoardPlacement(int x, int y)
+    public Position(int x, int y)
     {
         X = x;
         Y = y;
