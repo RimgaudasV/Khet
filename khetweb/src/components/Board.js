@@ -51,7 +51,6 @@ export default function Board({game}) {
             game.currentPlayer = data.currentPlayer;
             setSelectedPiece(null);
             setMoves(null);
-            debugger;
             setLaserPath(data.laser ?? []);
 
             if (data.gameEnded) alert("Game over!");

@@ -28,17 +28,7 @@ public class GameService : IGameService
     {
         _board = request.Board;
 
-        var piece = _board.GetPieceAt(request.CurrentPosition)
-            ?? throw new InvalidOperationException("No piece found at the current position.");
-
-        if (request.NewRotation is not null)
-            piece.Rotation = request.NewRotation.Value;
-
-        if (request.NewPosition is not null)
-        {
-            _board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
-            _board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = null;
-        }
+        DoMove(request);
 
         var laser = LaserMovement(request.Player);
 
@@ -49,6 +39,31 @@ public class GameService : IGameService
             CurrentPlayer = GetNextPlayer(request.Player),
             GameEnded = _gameOver
         };
+    }
+
+    private void DoMove(MoveRequest request)
+    {
+        var piece = _board.GetPieceAt(request.CurrentPosition)
+            ?? throw new InvalidOperationException("No piece found at the current position.");
+
+        if (request.NewRotation is not null)
+            piece.Rotation = request.NewRotation.Value;
+
+        if (request.NewPosition is not null)
+        {
+            var targetPiece = _board.GetPieceAt(request.NewPosition);
+            if (piece.Type == PieceType.Scarab && targetPiece is not null)
+            {
+                _board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = targetPiece;
+                _board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
+
+            }
+            else
+            {
+                _board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
+                _board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = null;
+            }
+        }
     }
 
     private List<Position> LaserMovement(Player player)
