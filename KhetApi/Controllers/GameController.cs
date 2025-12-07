@@ -1,4 +1,6 @@
-﻿using KhetApi.Interfaces;
+﻿using KhetApi.Entities;
+using KhetApi.Entities.Board;
+using KhetApi.Interfaces;
 using KhetApi.Requests;
 using KhetApi.Responses;
 using Microsoft.AspNetCore.Mvc;
@@ -16,10 +18,16 @@ public class GameController(IGameService gameService) : ControllerBase
         return gameService.StartGame();
     }
 
-    [HttpPost("/makeMove")]
+    [HttpPost("makeMove")]
     public GameResponse Move(MoveRequest request)
     {
         return gameService.MakeMove(request);
+    }
+
+    [HttpPost("validMoves")]
+    public ValidMovesResponse GetValidMoves([FromBody] ValidMoveRequest request)
+    {
+        return gameService.GetValidMoves(request);
     }
 
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { startGame } from "./api";
 import Board from "./Board/Board";
 import './App.css';

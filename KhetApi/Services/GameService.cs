@@ -195,6 +195,79 @@ public class GameService : IGameService
 
     public Player GetNextPlayer(Player player)
         => player == Player.Player1 ? Player.Player2 : Player.Player1;
+
+    public ValidMovesResponse GetValidMoves(ValidMoveRequest request)
+    {
+        _board = request.Board;
+        var piece = _board.GetPieceAt(request.CurrentPosition);
+        return new ValidMovesResponse
+        {
+            ValidPositions = GetValidPositions(request.CurrentPosition, piece),
+            ValidRotations = GetValidRotations(piece)
+        };
+
+    }
+
+
+    public List<Position> GetValidPositions(Position position, PieceEntity piece)
+    {
+        var validPositions = new List<Position>();
+
+        if (piece == null || !piece.IsMovable)
+            return validPositions;
+
+        // Directions: N, NE, E, SE, S, SW, W, NW
+        int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
+        int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
+
+        for (int i = 0; i < 8; i++)
+        {
+            int newX = position.X + dx[i];
+            int newY = position.Y + dy[i];
+
+            // Check if inside board
+            if (!_board.IsInsideBoard(new Position(newX, newY)))
+                continue;
+
+            var targetPiece = _board.GetPieceAt(new Position(newX, newY));
+
+            if (targetPiece == null)
+            {
+                // Empty square, always valid
+                validPositions.Add(new Position(newX, newY));
+            }
+            else if (piece.Type == PieceType.Scarab)
+            {
+                // Scarab can swap with Pyramid or Anubis, any color
+                if (targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)
+                {
+                    validPositions.Add(new Position(newX, newY));
+                }
+                // Scarab cannot move into Pharaoh or another Scarab
+            }
+            else
+            {
+                // Other pieces cannot move into occupied squares
+                continue;
+            }
+        }
+
+        return validPositions;
+    }
+
+
+    public List<Rotation> GetValidRotations(PieceEntity piece)
+    {
+        return piece.Type switch
+        {
+            PieceType.Scarab => new List<Rotation> { Rotation.LeftUp, Rotation.RightUp },
+            PieceType.Pyramid => new List<Rotation> { Rotation.RightUp, Rotation.LeftUp, Rotation.RightDown, Rotation.LeftDown },
+            PieceType.Sphinx => new List<Rotation>(),
+            _ => new List<Rotation> { Rotation.Up, Rotation.Right, Rotation.Down, Rotation.Left }
+        };
+    }
+
+
 }
 
 public record ImpactResult(LaserDirection? NewDirection, bool DestroyPiece, bool GameOver);
