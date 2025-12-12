@@ -1,6 +1,5 @@
-import { makeMove, rotate } from "./api-service";
+import { rotate } from "./api-service";
 
-// src/services/game-service.js
 export function isHighlighted(moves, x, y) {
     return moves?.some(pos => pos.x === x && pos.y === y);
 }

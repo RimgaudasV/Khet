@@ -8,5 +8,5 @@ public class PieceModel
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Rotation Rotation { get; set; }
     public bool IsMovable { get; set; }
-    public Player.Player Owner { get; set; }
+    public Player Owner { get; set; }
 }

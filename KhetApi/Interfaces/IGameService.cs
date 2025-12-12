@@ -1,4 +1,7 @@
-﻿using KhetApi.Requests;
+﻿using KhetApi.Models;
+using KhetApi.Models.Board;
+using KhetApi.Models.Move;
+using KhetApi.Requests;
 using KhetApi.Responses;
 
 namespace KhetApi.Interfaces;
@@ -6,7 +9,9 @@ namespace KhetApi.Interfaces;
 public interface IGameService
 {
     GameResponse StartGame();
-    GameResponse MakeMove(MoveRequest request);
-    GameResponse Rotate(RotationRequest request);
-    ValidMovesResponse GetValidMoves(ValidMoveRequest request);
+    ImpactResultModel MakeMove(MoveRequest request);
+    ImpactResultModel Rotate(RotationRequest request);
+    ValidMovesResponse GetValidMoves(BoardModel board, Player player, Position position);
+    Player GetNextPlayer(Player player);
+    GameResponse MoveByAgent(AgentMoveRequest request);
 }

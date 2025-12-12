@@ -1,5 +1,5 @@
-﻿using KhetApi.Models.Board;
-using KhetApi.Models.Player;
+﻿using KhetApi.Models;
+using KhetApi.Models.Board;
 
 namespace KhetApi.Responses;
 public class GameResponse

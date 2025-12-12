@@ -1,6 +1,6 @@
-﻿using KhetApi.Models.Board;
+﻿using KhetApi.Models;
+using KhetApi.Models.Board;
 using KhetApi.Models.Piece;
-using KhetApi.Models.Player;
 
 namespace KhetApi.Requests;
 

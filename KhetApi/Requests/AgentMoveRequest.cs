@@ -3,9 +3,8 @@ using KhetApi.Models.Board;
 
 namespace KhetApi.Requests;
 
-public class ValidMoveRequest
+public class AgentMoveRequest
 {
-    public Position CurrentPosition { get; set; }
-    public Player Player { get; set; }
     public BoardModel Board { get; set; }
+    public Player Player { get; set; }
 }

@@ -1,4 +1,4 @@
-﻿namespace KhetApi.Models.Player;
+﻿namespace KhetApi.Models;
 
 public enum Player
 {

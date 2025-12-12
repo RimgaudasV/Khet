@@ -41,6 +41,23 @@ export async function rotate(player, board, currentPosition, newRotation) {
             NewRotation: newRotation
         })
     });
-    if (!res.ok) throw new Error("Failed to make move");
+    if (!res.ok) throw new Error("Failed to rotate piece");
     return res.json();
 }
+
+
+export async function moveByAgent(board, player) {
+    const res = await fetch("https://localhost:7153/game/moveByAgent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            Board: board,
+            Player: player
+        })
+    });
+
+    if (!res.ok) throw new Error("Failed to move by agent");
+    return res.json();
+}
+
+
