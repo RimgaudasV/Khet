@@ -9,41 +9,50 @@ export function isLaserCell(laserPath, x, y) {
 }
 
 
-export function getLaserSegments(path, cellSize = 50) {
+export function getLaserSegments(path, cellSize = 50, gap = 2) {
     if (!path || path.length < 2) return [];
-    
+
+    const step = cellSize + gap;
+    const half = cellSize / 2;
+
     const segments = [];
+
     for (let i = 0; i < path.length - 1; i++) {
         const from = path[i];
         const to = path[i + 1];
 
         segments.push({
-            x1: from.x * cellSize + cellSize / 2,
-            y1: from.y * cellSize + cellSize / 2,
-            x2: to.x * cellSize + cellSize / 2,
-            y2: to.y * cellSize + cellSize / 2
+            x1: from.x * step + half,
+            y1: from.y * step + half,
+            x2: to.x * step + half,
+            y2: to.y * step + half
         });
     }
+
     return segments;
 }
 
-export async function rotatePiece(selectedPiece, direction, validRotations, game) {
+
+export async function rotatePiece(selectedPiece, direction, validRotations, board, currentPlayer) {
     if (!selectedPiece) return;
 
     const { x, y } = selectedPiece;
-    const piece = game.board.pieces[y][x];
+    const piece = board.pieces[y][x];
+
     const currentIndex = validRotations.indexOf(piece.rotation);
     if (currentIndex === -1) return;
 
-    const nextIndex = (currentIndex + direction + validRotations.length) % validRotations.length;
+    const nextIndex =
+        (currentIndex + direction + validRotations.length) %
+        validRotations.length;
+
     const nextRotation = validRotations[nextIndex];
 
-    const data = await rotate(
-        game.currentPlayer,
-        game.board,
+    return rotate(
+        currentPlayer,
+        board,
         { x, y },
         nextRotation
     );
-
-    return data;
 }
+

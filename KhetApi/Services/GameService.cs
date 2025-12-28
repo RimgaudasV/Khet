@@ -14,7 +14,7 @@ public class GameService : IGameService
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
-    private int MAX_DEPTH = 3;
+    private int MAX_DEPTH = 4;
 
     private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
         { PieceType.Pharaoh, 100 },
@@ -80,6 +80,7 @@ public class GameService : IGameService
         var laserPath = new List<Position> { currentPosition };
 
         bool gameOver = false;
+        DestroyedPiece? destroyedPiece = null;
 
         while (true)
         {
@@ -106,21 +107,24 @@ public class GameService : IGameService
                 {
                     break;
                 }
-                else
-                {
-                    laserDirection = impact.NewDirection.Value;
-                }
-
                 if (impact.DestroyPiece)
                 {
+                    destroyedPiece = new DestroyedPiece { 
+                        Type = piece.Type,
+                        Owner = piece.Owner,
+                        Position = currentPosition,
+                        Rotation = piece.Rotation
+                    };
                     board.RemovePiece(currentPosition);
                     break;
                 }
+
+                laserDirection = impact.NewDirection.Value;
             }
         }
         var nextPlayer = GetNextPlayer(player);
 
-        return new ImpactResultModel (board, laserPath, gameOver, nextPlayer);
+        return new ImpactResultModel (board, laserPath, gameOver, nextPlayer, destroyedPiece);
     }
 
     private Position MoveOneStep(Position pos, LaserDirection dir) => dir switch
@@ -308,7 +312,8 @@ public class GameService : IGameService
             Board = result.Board,
             CurrentPlayer = result.NextPlayer,
             GameEnded = result.GameOver,
-            Laser = result.LaserPath
+            Laser = result.LaserPath,
+            DestroyedPiece = result.DestroyedPiece
         };
     }
 
@@ -316,7 +321,7 @@ public class GameService : IGameService
     {
         if (depth == 0 || gameOver)
         {
-            return new AlphaBetaResultModel { Score = EvaluateBoard(board, Player.Player2) };
+            return new AlphaBetaResultModel { Score = EvaluateBoard(board) };
         }
 
         Position? bestMoveFrom = null;
@@ -359,7 +364,6 @@ public class GameService : IGameService
                     {
                         if (eval > bestEval)
                         {
-                            Console.WriteLine($"New best move: ({position.X},{position.Y}) -> ({newPosition.X},{newPosition.Y}), eval: {eval}");
                             bestEval = eval;
                             bestMoveFrom = position;
                             bestMoveTo = newPosition;
@@ -371,7 +375,6 @@ public class GameService : IGameService
                     {
                         if (eval < bestEval)
                         {
-                            Console.WriteLine($"New best move: ({position.X},{position.Y}) -> ({newPosition.X},{newPosition.Y}), eval: {eval}");
                             bestEval = eval;
                             bestMoveFrom = position;
                             bestMoveTo = newPosition;
@@ -411,7 +414,6 @@ public class GameService : IGameService
                     {
                         if (eval > bestEval)
                         {
-                            Console.WriteLine($"New best rotation: ({position.X},{position.Y}) -> {rotation}, eval: {eval}");
                             bestEval = eval;
                             bestMoveFrom = position;
                             bestMoveTo = position;
@@ -423,7 +425,6 @@ public class GameService : IGameService
                     {
                         if (eval < bestEval)
                         {
-                            Console.WriteLine($"New best rotation: ({position.X},{position.Y}) -> {rotation}, eval: {eval}");
                             bestEval = eval;
                             bestMoveFrom = position;
                             bestMoveTo = position;
@@ -453,7 +454,7 @@ public class GameService : IGameService
         };
     }
 
-    private int EvaluateBoard(BoardModel board, Player maximizingPlayer)
+    private int EvaluateBoard(BoardModel board, Player maximizingPlayer = Player.Player2)
     {
         int score = 0;
 
@@ -472,14 +473,10 @@ public class GameService : IGameService
                 }
             }
         }
-
-        Console.WriteLine($"Eval for Player {maximizingPlayer}: {score}");
+        if (score > 300 || score < -300)
+            Console.WriteLine($"Eval for Player {maximizingPlayer}: {score}");
         return score;
     }
-
-
-
-
 
 
     private BoardModel CloneBoard(BoardModel original)

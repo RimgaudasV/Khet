@@ -1,5 +1,5 @@
 // src/components/Board.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Piece from "./Piece";
 import { rotatePiece, isHighlighted } from "../services/game-service";
 import { getValidMoves, makeMove, moveByAgent } from "../services/api-service";
@@ -12,11 +12,91 @@ export default function Board({game}) {
     const [laserPath, setLaserPath] = useState([]);
     const [validRotations, setValidRotations] = useState([]);
     const [gameOver, setGameOver] = useState(false);
+    const [destroyedPiece, setDestroyedPiece] = useState(null);
+    const [board, setBoard] = useState(null);
+    const [currentPlayer, setCurrentPlayer] = useState(null);
+    const [explosion, setExplosion] = useState(null);
 
 
-    if (!game) return <div>Loading...</div>;
+    useEffect(() => {
+        if (!game) return;
 
-    const rows = game.board.pieces; // use board directly
+        setBoard(game.board);
+        setCurrentPlayer(game.currentPlayer);
+    }, [game]);
+
+
+    const CELL_SIZE = 50;
+    const GAP = 2;
+    const COLS = 10;
+    const ROWS = 8;
+
+    const boardWidth  = COLS * CELL_SIZE + (COLS - 1) * GAP;
+    const boardHeight = ROWS * CELL_SIZE + (ROWS - 1) * GAP;
+
+
+    if (!game || !board) return <div>Loading...</div>;
+
+    const rows = board.pieces;
+
+    function clearSelection() {
+        setSelectedPiece(null);
+        setMoves([]);
+        setValidRotations([]);
+    }
+
+    function handleLaserResult(data, triggerAgent = true) {
+        const LASER_SPEED = 200;
+        const LASER_AFTER_DELAY = 1000; // laser stays 1s after traversal
+
+        const laserDuration = (data.laser?.length ?? 0) * LASER_SPEED;
+
+        // 1️⃣ Apply move / rotation immediately
+        setBoard(data.board);
+        setCurrentPlayer(data.nextPlayer);
+
+        // 2️⃣ Fire laser
+        setLaserPath(data.laser ?? []);
+
+        // 3️⃣ Keep destroyed piece visible during traversal
+        setDestroyedPiece(data.destroyedPiece ?? null);
+
+        // 4️⃣ END OF TRAVERSAL → destroy piece + explosion
+        setTimeout(() => {
+            if (data.destroyedPiece) {
+                // remove piece immediately
+                setDestroyedPiece(null);
+
+                // trigger explosion
+                setExplosion(data.destroyedPiece);
+
+                // remove explosion after animation
+                setTimeout(() => setExplosion(null), 300);
+            }
+        }, laserDuration);
+
+        // 5️⃣ AFTER 1s → remove laser & continue game
+        setTimeout(() => {
+            setLaserPath([]);
+
+            if (data.gameOver) {
+                setGameOver(true);
+                alert("Game over!");
+                return;
+            }
+
+            if (triggerAgent && data.nextPlayer === "Player2") {
+                AgentsTurn();
+            }
+        }, laserDuration + LASER_AFTER_DELAY);
+    }
+
+
+
+
+
+
+
 
     const handlePieceClick = async (x, y) => {
         const piece = rows[y][x];
@@ -31,7 +111,7 @@ export default function Board({game}) {
         setSelectedPiece({ x, y });
 
         try {
-            const data = await getValidMoves({ x, y }, game.currentPlayer, game.board);
+            const data = await getValidMoves({ x, y }, currentPlayer, board);
             setMoves(data.validPositions);
             const validRotationsAsStrings = data.validRotations.map(r => r.toString());
             setValidRotations(validRotationsAsStrings);
@@ -44,35 +124,30 @@ export default function Board({game}) {
         if (!selectedPiece) return;
 
         try {
-            const data = await rotatePiece(selectedPiece, direction, validRotations, game);
-            game.board = data.board;
-            game.currentPlayer = data.currentPlayer;
-            setLaserPath(data.laser ?? []);
-            setSelectedPiece(null);
-            setMoves([]);
-            setValidRotations([]);
+            const data = await rotatePiece(
+                selectedPiece,
+                direction,
+                validRotations,
+                board,
+                currentPlayer
+            );
 
-            if (data.gameEnded) {
-                setGameOver(true);
-                alert("Game over!");
-            }
-
+            clearSelection();
+            handleLaserResult(data);
         } catch (err) {
             console.error(err);
         }
-        await AgentsTurn(); 
+
+        await AgentsTurn();
     };
 
+
     async function AgentsTurn() {
-        if (game.currentPlayer !== "Player2" || gameOver) return;
+        if (currentPlayer !== "Player2" || gameOver) return;
 
         try {
-            const agentResult = await moveByAgent(game.board, game.currentPlayer);
-
-            game.board = agentResult.board;
-            game.currentPlayer = agentResult.currentPlayer;
-            setLaserPath(agentResult.laser ?? []);
-
+            const data = await moveByAgent(board, currentPlayer);
+            handleLaserResult(data);
         } catch (err) {
             console.error("Agent move failed:", err);
         }
@@ -84,28 +159,29 @@ export default function Board({game}) {
 
         try {
             const data = await makeMove(
-                game.currentPlayer,
-                game.board,
+                currentPlayer,
+                board,
                 { X: selectedPiece.x, Y: selectedPiece.y },
                 { X: toX, Y: toY }
             );
-            game.board = data.board;
-            game.currentPlayer = data.currentPlayer;
-            setSelectedPiece(null);
-            setMoves(null);
-            setValidRotations([]);
-            setLaserPath(data.laser ?? []);
 
-            if (data.gameEnded) {
-                setGameOver(true);
-                alert("Game over!");
-            }
-
+            clearSelection();
+            handleLaserResult(data);
         } catch (err) {
             console.error(err);
         }
-        await AgentsTurn(); 
+
+        await AgentsTurn();
     };
+
+    function getHitIndex(laserPath, destroyedPiece) {
+        return laserPath.findIndex(
+            p =>
+                p.x === destroyedPiece.position.x &&
+                p.y === destroyedPiece.position.y
+        );
+    }
+
 
     return (
         <div className="board-wrapper" style={{ position: "relative" }}>
@@ -113,7 +189,7 @@ export default function Board({game}) {
                 {rows.map((row = [], y) =>
                     row.map((cell, x) => {
                         const isMoveTarget = isHighlighted(moves, x, y);
-                        const isOwnPiece = cell && cell.owner === game.currentPlayer;
+                        const isOwnPiece = cell && cell.owner === currentPlayer;
                         const isDisabledCell =
                             (!cell) && (
                                 x === 0 || x === 9 || 
@@ -136,13 +212,30 @@ export default function Board({game}) {
                                 onClick={() => {
                                     if (isHighlighted(moves, x, y)) {
                                         handleMoveClick(x, y);
-                                    } else if (cell && cell.owner === game.currentPlayer) {
+                                    } else if (cell && cell.owner === currentPlayer) {
                                         handlePieceClick(x, y);
                                     }
                                 }}
                             >
                                 <Piece cell={cell}/>
-                                
+
+                                {destroyedPiece &&
+                                destroyedPiece.position.x === x &&
+                                destroyedPiece.position.y === y && (
+                                    <Piece
+                                        cell={{
+                                            type: destroyedPiece.type,
+                                            owner: destroyedPiece.owner,
+                                            rotation: destroyedPiece.rotation
+                                        }}
+                                    />
+                                )}
+                                {explosion &&
+                                explosion.position.x === x &&
+                                explosion.position.y === y && (
+                                    <div className="explosion" />
+                                )}
+
                                 {
                                 selectedPiece?.x === x && selectedPiece?.y === y && validRotations.length > 0 && (
                                     <div className="rotation-overlay">
@@ -157,8 +250,14 @@ export default function Board({game}) {
 
             </div>
 
-            {/* Laser overlay */}
-            <Laser path={laserPath} cellSize={50} />
+            <Laser
+                path={laserPath}
+                cellSize={CELL_SIZE}
+                gap={GAP}
+                width={boardWidth}
+                height={boardHeight}
+            />
+
         </div>
     );
 }

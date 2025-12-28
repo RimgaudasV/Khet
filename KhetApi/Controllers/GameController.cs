@@ -25,7 +25,8 @@ public class GameController(IGameService gameService) : ControllerBase
             Board = results.Board,
             Laser = results.LaserPath,
             CurrentPlayer = results.NextPlayer,
-            GameEnded = results.GameOver
+            GameEnded = results.GameOver,
+            DestroyedPiece = results.DestroyedPiece
         };
     }
     [HttpPost("rotate")]
@@ -37,7 +38,8 @@ public class GameController(IGameService gameService) : ControllerBase
             Board = results.Board,
             Laser = results.LaserPath,
             CurrentPlayer = results.NextPlayer,
-            GameEnded = results.GameOver
+            GameEnded = results.GameOver,
+            DestroyedPiece = results.DestroyedPiece
         };
     }
 
