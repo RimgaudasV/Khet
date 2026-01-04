@@ -15,14 +15,13 @@ public class GameService : IGameService
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
-    private int MAX_DEPTH = 4;
+    private int MAX_DEPTH = 3;
 
     private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
-        { PieceType.Pharaoh, 300 },
-        { PieceType.Scarab, 40 },
-        { PieceType.Pyramid, 30 },
-        { PieceType.Anubis, 50 },
-        { PieceType.Sphinx, 0 }
+        { PieceType.Pharaoh, 10 },
+        { PieceType.Scarab, 2 },
+        { PieceType.Pyramid, 1 },
+        { PieceType.Anubis, 3 }
     };
 
 
@@ -71,12 +70,12 @@ public class GameService : IGameService
 
         if (move.Rotation == null)
         {
-            var moving = board.Pieces[move.From.Y][move.From.X];
-            var captured = board.Pieces[move.To.Y][move.To.X];
+            var oldPosition = board.Pieces[move.From.Y][move.From.X];
+            var newPosition = board.Pieces[move.To.Y][move.To.X];
 
-            undo.Captured = captured;
+            undo.Captured = newPosition;
 
-            board.Pieces[move.To.Y][move.To.X] = moving;
+            board.Pieces[move.To.Y][move.To.X] = oldPosition;
             board.Pieces[move.From.Y][move.From.X] = null;
         }
         else
@@ -304,8 +303,9 @@ public class GameService : IGameService
 
     public List<Rotation> GetValidRotations(PieceModel piece)
     {
-        return piece.Type switch
+        var allPositions = piece.Type switch
         {
+            PieceType.Disabled => new List<Rotation>(),
             PieceType.Scarab => new List<Rotation> { Rotation.LeftUp, Rotation.RightUp },
             PieceType.Pyramid => new List<Rotation> { Rotation.RightUp, Rotation.RightDown, Rotation.LeftDown, Rotation.LeftUp },
             PieceType.Anubis => new List<Rotation> { Rotation.Up, Rotation.Right, Rotation.Down, Rotation.Left },
@@ -314,7 +314,20 @@ public class GameService : IGameService
                 : new List<Rotation> { Rotation.Down, Rotation.Right },
             _ => new List<Rotation> { Rotation.Up, Rotation.Right, Rotation.Down, Rotation.Left }
         };
+
+        if (allPositions.Count == 0)
+            return new List<Rotation>();
+
+        var index = allPositions.IndexOf(piece.Rotation);
+        var count = allPositions.Count;
+
+        var previous = allPositions[(index - 1 + count) % count];
+        var current = allPositions[index];
+        var next = allPositions[(index + 1) % count];
+
+        return new List<Rotation> { previous, current, next };
     }
+
 
     private IEnumerable<Move> GenerateMoves(BoardModel board, Player player, Position from, PieceModel piece)
     {
@@ -395,8 +408,6 @@ public class GameService : IGameService
                 var piece = board.GetPieceAt(from);
                 if (piece == null || piece.Owner != player) continue;
 
-                var valid = GetValidMoves(board, player, from);
-
                 foreach (var move in GenerateMoves(board, player, from, piece))
                 {
                     var undo = MakeMoveInPlace(board, player, move);
@@ -443,7 +454,7 @@ public class GameService : IGameService
     }
 
 
-    private int EvaluateBoard(BoardModel board, Player maximizingPlayer = Player.Player2)
+    private int EvaluateBoard(BoardModel board)
     {
         int score = 0;
 
@@ -455,7 +466,7 @@ public class GameService : IGameService
                 if (piece != null && PieceValues.ContainsKey(piece.Type))
                 {
                     int value = PieceValues[piece.Type];
-                    if (piece.Owner == maximizingPlayer)
+                    if (piece.Owner == Player.Player2)
                         score += value;
                     else
                         score -= value;

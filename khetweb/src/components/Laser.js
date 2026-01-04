@@ -23,7 +23,7 @@ export default function Laser({ path, cellSize, gap, width, height }) {
             if (i >= segments.length) {
                 clearInterval(interval);
             }
-        }, 200);
+        }, 100);
 
         return () => clearInterval(interval);
     }, [path, segments.length]);

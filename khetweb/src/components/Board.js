@@ -46,8 +46,8 @@ export default function Board({game}) {
     }
 
     function handleLaserResult(data) {
-        const LASER_SPEED = 200;
-        const LASER_AFTER_DELAY = 1000;
+        const LASER_SPEED = 100;
+        const LASER_AFTER_DELAY = 500;
 
         const laserDuration = (data.laser?.length ?? 0) * LASER_SPEED;
 
@@ -81,8 +81,7 @@ export default function Board({game}) {
 
         setTimeout(async () => {
             setLaserPath([]);
-
-            if (data.gameOver) {
+            if (data.gameEnded) {
                 setGameOver(true);
                 alert("Game over!");
                 return;
