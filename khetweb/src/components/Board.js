@@ -16,7 +16,7 @@ export default function Board({game}) {
     const [board, setBoard] = useState(null);
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const [explosion, setExplosion] = useState(null);
-
+    const pendingAgentMoveRef = React.useRef(null);
 
     useEffect(() => {
         if (!game) return;
@@ -45,38 +45,41 @@ export default function Board({game}) {
         setValidRotations([]);
     }
 
-    function handleLaserResult(data, triggerAgent = true) {
+    function handleLaserResult(data) {
         const LASER_SPEED = 200;
-        const LASER_AFTER_DELAY = 1000; // laser stays 1s after traversal
+        const LASER_AFTER_DELAY = 1000;
 
         const laserDuration = (data.laser?.length ?? 0) * LASER_SPEED;
 
-        // 1️⃣ Apply move / rotation immediately
+        if (data.currentPlayer === "Player2") {
+            const start = performance.now();
+
+            pendingAgentMoveRef.current = moveByAgent(data.board, data.currentPlayer)
+                .then(result => {
+                    const end = performance.now();
+                    console.log(`Agent move took ${(end - start).toFixed(1)} ms`);
+                    return result;
+                });
+
+        } else {
+            pendingAgentMoveRef.current = null;
+        }
+
+
         setBoard(data.board);
-        setCurrentPlayer(data.nextPlayer);
-
-        // 2️⃣ Fire laser
+        setCurrentPlayer(data.currentPlayer);
         setLaserPath(data.laser ?? []);
-
-        // 3️⃣ Keep destroyed piece visible during traversal
         setDestroyedPiece(data.destroyedPiece ?? null);
 
-        // 4️⃣ END OF TRAVERSAL → destroy piece + explosion
         setTimeout(() => {
             if (data.destroyedPiece) {
-                // remove piece immediately
                 setDestroyedPiece(null);
-
-                // trigger explosion
                 setExplosion(data.destroyedPiece);
-
-                // remove explosion after animation
                 setTimeout(() => setExplosion(null), 300);
             }
         }, laserDuration);
 
-        // 5️⃣ AFTER 1s → remove laser & continue game
-        setTimeout(() => {
+        setTimeout(async () => {
             setLaserPath([]);
 
             if (data.gameOver) {
@@ -85,16 +88,13 @@ export default function Board({game}) {
                 return;
             }
 
-            if (triggerAgent && data.nextPlayer === "Player2") {
-                AgentsTurn();
+            if (pendingAgentMoveRef.current) {
+                const agentResult = await pendingAgentMoveRef.current;
+                pendingAgentMoveRef.current = null;
+                handleLaserResult(agentResult);
             }
         }, laserDuration + LASER_AFTER_DELAY);
     }
-
-
-
-
-
 
 
 
@@ -137,21 +137,8 @@ export default function Board({game}) {
         } catch (err) {
             console.error(err);
         }
-
-        await AgentsTurn();
     };
 
-
-    async function AgentsTurn() {
-        if (currentPlayer !== "Player2" || gameOver) return;
-
-        try {
-            const data = await moveByAgent(board, currentPlayer);
-            handleLaserResult(data);
-        } catch (err) {
-            console.error("Agent move failed:", err);
-        }
-    }
 
 
     const handleMoveClick = async (toX, toY) => {
@@ -170,17 +157,7 @@ export default function Board({game}) {
         } catch (err) {
             console.error(err);
         }
-
-        await AgentsTurn();
     };
-
-    function getHitIndex(laserPath, destroyedPiece) {
-        return laserPath.findIndex(
-            p =>
-                p.x === destroyedPiece.position.x &&
-                p.y === destroyedPiece.position.y
-        );
-    }
 
 
     return (

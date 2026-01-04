@@ -6,6 +6,7 @@ using KhetApi.Models.Move;
 using KhetApi.Models.Piece;
 using KhetApi.Requests;
 using KhetApi.Responses;
+using System.Numerics;
 
 namespace KhetApi.Services;
 
@@ -17,7 +18,7 @@ public class GameService : IGameService
     private int MAX_DEPTH = 4;
 
     private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
-        { PieceType.Pharaoh, 100 },
+        { PieceType.Pharaoh, 300 },
         { PieceType.Scarab, 40 },
         { PieceType.Pyramid, 30 },
         { PieceType.Anubis, 50 },
@@ -59,6 +60,71 @@ public class GameService : IGameService
         return ApplyImpacts(request.Board, request.Player);
 
     }
+
+    private UndoState MakeMoveInPlace(BoardModel board, Player player, Move move)
+    {
+        var undo = new UndoState
+        {
+            From = move.From,
+            To = move.To
+        };
+
+        // 1️⃣ Apply move / rotation
+        if (move.Rotation == null)
+        {
+            var moving = board.Pieces[move.From.Y][move.From.X];
+            var captured = board.Pieces[move.To.Y][move.To.X];
+
+            undo.Captured = captured;
+
+            board.Pieces[move.To.Y][move.To.X] = moving;
+            board.Pieces[move.From.Y][move.From.X] = null;
+        }
+        else
+        {
+            var piece = board.GetPieceAt(move.From)!;
+            undo.OldRotation = piece.Rotation;
+            piece.Rotation = move.Rotation.Value;
+        }
+
+        // 2️⃣ Apply laser
+        var impact = ApplyImpacts(board, player);
+
+        undo.Destroyed = impact.DestroyedPiece;
+
+        return undo;
+    }
+
+    private void UndoMove(BoardModel board, UndoState undo)
+    {
+        // 1️⃣ Restore destroyed piece
+        if (undo.Destroyed != null)
+        {
+            var d = undo.Destroyed;
+            board.Pieces[d.Position.Y][d.Position.X] = new PieceModel
+            {
+                Type = d.Type,
+                Owner = d.Owner,
+                Rotation = d.Rotation,
+                IsMovable = true
+            };
+        }
+
+        // 2️⃣ Undo rotation
+        if (undo.OldRotation != null)
+        {
+            var piece = board.GetPieceAt(undo.From)!;
+            piece.Rotation = undo.OldRotation.Value;
+            return;
+        }
+
+        // 3️⃣ Undo move
+        var moving = board.Pieces[undo.To.Y][undo.To.X];
+        board.Pieces[undo.From.Y][undo.From.X] = moving;
+        board.Pieces[undo.To.Y][undo.To.X] = undo.Captured;
+    }
+
+
 
     public ImpactResultModel Rotate(RotationRequest request)
     {
@@ -260,6 +326,34 @@ public class GameService : IGameService
         };
     }
 
+    private IEnumerable<Move> GenerateMoves(BoardModel board, Player player, Position from, PieceModel piece)
+    {
+        var valid = GetValidMoves(board, player, from);
+
+        foreach (var to in valid.ValidPositions)
+        {
+            yield return new Move
+            {
+                From = from,
+                To = to,
+                Rotation = null
+            };
+        }
+
+        foreach (var rot in valid.ValidRotations)
+        {
+            if (piece.Rotation == rot) continue;
+
+            yield return new Move
+            {
+                From = from,
+                To = from,
+                Rotation = rot
+            };
+        }
+    }
+
+
     public bool IsPlayableTile(Position cell, Player player)
     {
         if (player == Player.Player1)
@@ -278,34 +372,28 @@ public class GameService : IGameService
 
     public GameResponse MoveByAgent(AgentMoveRequest request)
     {
-        var best = AlphaBetaSearch(request.Board, request.Player, MAX_DEPTH, int.MinValue, int.MaxValue, false);
+        var search = AlphaBetaSearch( request.Board, request.Player, MAX_DEPTH,int.MinValue,int.MaxValue);
 
-        ImpactResultModel result;
+        if (search.BestMoves.Count == 0)
+            throw new InvalidOperationException("No legal AI moves");
 
-        if (best.MoveTo != null && best.MoveTo != best.MoveFrom)
-        {
-            result = MakeMove(new MoveRequest
+        var chosen = search.BestMoves[Random.Shared.Next(search.BestMoves.Count)];
+
+        ImpactResultModel result = chosen.Rotation != null
+            ? Rotate(new RotationRequest
             {
                 Board = request.Board,
                 Player = request.Player,
-                CurrentPosition = best.MoveFrom,
-                NewPosition = best.MoveTo
-            });
-        }
-        else if (best.Rotation != null)
-        {
-            result = Rotate(new RotationRequest
+                CurrentPosition = chosen.From,
+                NewRotation = chosen.Rotation.Value
+            })
+            : MakeMove(new MoveRequest
             {
                 Board = request.Board,
                 Player = request.Player,
-                CurrentPosition = best.MoveFrom,
-                NewRotation = best.Rotation.Value
+                CurrentPosition = chosen.From,
+                NewPosition = chosen.To
             });
-        }
-        else
-        {
-            throw new InvalidOperationException("Invalid move returned from AI.");
-        }
 
         return new GameResponse
         {
@@ -317,142 +405,73 @@ public class GameService : IGameService
         };
     }
 
-    private AlphaBetaResultModel AlphaBetaSearch(BoardModel board, Player currentPlayer, int depth, int alpha, int beta, bool gameOver)
+
+
+
+    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha,int beta)
     {
-        if (depth == 0 || gameOver)
-        {
-            return new AlphaBetaResultModel { Score = EvaluateBoard(board) };
-        }
+        if (depth == 0)
+            return new SearchResult { Score = EvaluateBoard(board) };
 
-        Position? bestMoveFrom = null;
-        Position? bestMoveTo = null;
-        Rotation? bestRotation = null;
-
-        bool isMaximizing = currentPlayer == Player.Player2;
-        int bestEval = isMaximizing ? int.MinValue : int.MaxValue;
+        bool maximizing = player == Player.Player2;
+        int bestScore = maximizing ? int.MinValue : int.MaxValue;
+        var bestMoves = new List<Move>();
 
         for (int y = 0; y < board.Pieces.Length; y++)
-        {
             for (int x = 0; x < board.Pieces[y].Length; x++)
             {
-                var position = new Position(x, y);
-                var piece = board.GetPieceAt(position);
+                var from = new Position(x, y);
+                var piece = board.GetPieceAt(from);
+                if (piece == null || piece.Owner != player) continue;
 
-                if (piece == null || piece.Owner != currentPlayer)
-                    continue;
+                var valid = GetValidMoves(board, player, from);
 
-                var validMoves = GetValidMoves(board, currentPlayer, position);
-
-                foreach (var newPosition in validMoves.ValidPositions)
+                foreach (var move in GenerateMoves(board, player, from, piece))
                 {
-                    var boardCopy = CloneBoard(board);
-                    var result = MakeMove(new MoveRequest
-                    {
-                        Board = boardCopy,
-                        Player = currentPlayer,
-                        CurrentPosition = position,
-                        NewPosition = newPosition
-                    });
+                    var undo = MakeMoveInPlace(board, player, move);
 
-                    int eval;
-                    if (result.GameOver)
-                        eval = isMaximizing ? -10000 : 10000;
-                    else
-                         eval = AlphaBetaSearch(result.Board, result.NextPlayer, depth - 1, alpha, beta, result.GameOver).Score;
+                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta).Score;
 
-                    if (isMaximizing)
+                    UndoMove(board, undo);
+
+                    if (maximizing)
                     {
-                        if (eval > bestEval)
+                        if (score > bestScore)
                         {
-                            bestEval = eval;
-                            bestMoveFrom = position;
-                            bestMoveTo = newPosition;
-                            bestRotation = null;
+                            bestScore = score;
+                            bestMoves.Clear();
                         }
-                        alpha = Math.Max(alpha, eval);
+                        if (score == bestScore)
+                            bestMoves.Add(move);
+                        alpha = Math.Max(alpha, score);
                     }
                     else
                     {
-                        if (eval < bestEval)
+                        if (score < bestScore)
                         {
-                            bestEval = eval;
-                            bestMoveFrom = position;
-                            bestMoveTo = newPosition;
-                            bestRotation = null;
+                            bestScore = score;
+                            bestMoves.Clear();
                         }
-                        beta = Math.Min(beta, eval);
+                        if (score == bestScore)
+                            bestMoves.Add(move);
+                        beta = Math.Min(beta, score);
                     }
 
                     if (beta <= alpha)
                         break;
                 }
 
-                if (beta <= alpha)
-                    break;
 
-                foreach (var rotation in validMoves.ValidRotations)
-                {
-                    if (piece.Rotation == rotation)
-                        continue;
-
-                    var boardCopy = CloneBoard(board);
-                    var result = Rotate(new RotationRequest
-                    {
-                        Board = boardCopy,
-                        Player = currentPlayer,
-                        CurrentPosition = position,
-                        NewRotation = rotation
-                    });
-
-                    int eval;
-                    if (result.GameOver)
-                        eval = isMaximizing ? 10000 : -10000;
-                    else
-                        eval = AlphaBetaSearch(result.Board, result.NextPlayer, depth - 1, alpha, beta, result.GameOver).Score;
-
-                    if (isMaximizing)
-                    {
-                        if (eval > bestEval)
-                        {
-                            bestEval = eval;
-                            bestMoveFrom = position;
-                            bestMoveTo = position;
-                            bestRotation = rotation;
-                        }
-                        alpha = Math.Max(alpha, eval);
-                    }
-                    else
-                    {
-                        if (eval < bestEval)
-                        {
-                            bestEval = eval;
-                            bestMoveFrom = position;
-                            bestMoveTo = position;
-                            bestRotation = rotation;
-                        }
-                        beta = Math.Min(beta, eval);
-                    }
-
-                    if (beta <= alpha)
-                        break;
-                }
-
-                if (beta <= alpha)
-                    break;
+                if (beta <= alpha) break;
             }
 
-            if (beta <= alpha)
-                break;
-        }
-
-        return new AlphaBetaResultModel
+        return new SearchResult
         {
-            Score = bestEval,
-            MoveFrom = bestMoveFrom,
-            MoveTo = bestMoveTo,
-            Rotation = bestRotation
+            Score = bestScore,
+            BestMoves = bestMoves
         };
     }
+
 
     private int EvaluateBoard(BoardModel board, Player maximizingPlayer = Player.Player2)
     {
@@ -473,37 +492,9 @@ public class GameService : IGameService
                 }
             }
         }
-        if (score > 300 || score < -300)
-            Console.WriteLine($"Eval for Player {maximizingPlayer}: {score}");
+        Console.WriteLine($"Eval for Player {maximizingPlayer}: {score}");
         return score;
     }
-
-
-    private BoardModel CloneBoard(BoardModel original)
-    {
-        var cloned = new BoardModel();
-
-        for (int y = 0; y < original.Pieces.Length; y++)
-        {
-            for (int x = 0; x < original.Pieces[y].Length; x++)
-            {
-                var piece = original.Pieces[y][x];
-                if (piece != null)
-                {
-                    cloned.Pieces[y][x] = new PieceModel
-                    {
-                        Type = piece.Type,
-                        Owner = piece.Owner,
-                        Rotation = piece.Rotation,
-                        IsMovable = piece.IsMovable
-                    };
-                }
-            }
-        }
-
-        return cloned;
-    }
-
 
 }
 

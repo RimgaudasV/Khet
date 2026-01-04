@@ -81,6 +81,8 @@
 .disabled {
     position: relative;
 }
+.disabled.player1 { background-color: #99c; } /* lighter blue */
+.disabled.player2 { background-color: #f99; } /* lighter red */
 
 .disabled::before {
     content: '✕';
