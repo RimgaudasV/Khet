@@ -167,19 +167,11 @@ export default function Board({game}) {
                     row.map((cell, x) => {
                         const isMoveTarget = isHighlighted(moves, x, y);
                         const isOwnPiece = cell && cell.owner === currentPlayer;
-                        const isDisabledCell =
-                            (!cell) && (
-                                x === 0 || x === 9 || 
-                                (x === 1 && (y === 0 || y === 7)) || 
-                                (x === 8 && (y === 0 || y === 7))
-                            );
-
 
                         const cellClass = `
                             board-cell
                             ${isMoveTarget ? "highlight" : "default"}
-                            ${(isMoveTarget || isOwnPiece) ? "clickable" : ""}
-                            ${isDisabledCell ? "disabled" : ""}
+                            ${(isMoveTarget || (isOwnPiece && cell.type.toLowerCase() !== "disabled"))  ? "clickable" : ""}
                         `;
 
                         return (

@@ -80,9 +80,11 @@
 
 .disabled {
     position: relative;
+    border: 0px; 
+    background-color: #fff;
 }
-.disabled.player1 { background-color: #99c; } /* lighter blue */
-.disabled.player2 { background-color: #f99; } /* lighter red */
+
+
 
 .disabled::before {
     content: '✕';
@@ -97,5 +99,5 @@
 }
 
 /* Color by player */
-.disabled.player1::before { color: #00f; }
-.disabled.player2::before { color: #f00; }
+.disabled.player1::before { color: #f00; }
+.disabled.player2::before { color: #00f; }

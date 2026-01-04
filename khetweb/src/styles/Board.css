@@ -22,8 +22,13 @@
 }
 
 .board-cell.laser { background-color: #f88; }
-.board-cell.highlight { background-color: #aaf; }
+.board-cell.highlight { background-color: #aaf;}
 .board-cell.default { background-color: #fff; }
+
+.board-cell.highlight .piece {
+    background-color: transparent !important;
+}
+
 
 
 .explosion {

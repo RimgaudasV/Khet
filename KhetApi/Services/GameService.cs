@@ -69,7 +69,6 @@ public class GameService : IGameService
             To = move.To
         };
 
-        // 1️⃣ Apply move / rotation
         if (move.Rotation == null)
         {
             var moving = board.Pieces[move.From.Y][move.From.X];
@@ -87,7 +86,6 @@ public class GameService : IGameService
             piece.Rotation = move.Rotation.Value;
         }
 
-        // 2️⃣ Apply laser
         var impact = ApplyImpacts(board, player);
 
         undo.Destroyed = impact.DestroyedPiece;
@@ -97,20 +95,18 @@ public class GameService : IGameService
 
     private void UndoMove(BoardModel board, UndoState undo)
     {
-        // 1️⃣ Restore destroyed piece
         if (undo.Destroyed != null)
         {
-            var d = undo.Destroyed;
-            board.Pieces[d.Position.Y][d.Position.X] = new PieceModel
+            var destroyedPiece = undo.Destroyed;
+            board.Pieces[destroyedPiece.Position.Y][destroyedPiece.Position.X] = new PieceModel
             {
-                Type = d.Type,
-                Owner = d.Owner,
-                Rotation = d.Rotation,
+                Type = destroyedPiece.Type,
+                Owner = destroyedPiece.Owner,
+                Rotation = destroyedPiece.Rotation,
                 IsMovable = true
             };
         }
 
-        // 2️⃣ Undo rotation
         if (undo.OldRotation != null)
         {
             var piece = board.GetPieceAt(undo.From)!;
@@ -118,7 +114,6 @@ public class GameService : IGameService
             return;
         }
 
-        // 3️⃣ Undo move
         var moving = board.Pieces[undo.To.Y][undo.To.X];
         board.Pieces[undo.From.Y][undo.From.X] = moving;
         board.Pieces[undo.To.Y][undo.To.X] = undo.Captured;
@@ -159,7 +154,7 @@ public class GameService : IGameService
 
             var piece = board.Pieces[currentPosition.Y][currentPosition.X];
 
-            if (piece != null)
+            if (piece != null && piece.Type != PieceType.Disabled)
             {
                 var impact = CalculateImpact(laserDirection, piece);
 
@@ -297,12 +292,7 @@ public class GameService : IGameService
 
             var targetPiece = board.Pieces[newY][newX];
 
-            if(!IsPlayableTile(cell, player))
-            {
-                continue;
-            }
-
-            if (targetPiece == null ||
+            if (targetPiece == null || (targetPiece.Type == PieceType.Disabled && player == targetPiece.Owner) ||
                (piece.Type == PieceType.Scarab &&(targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)))
             {
                 validPositions.Add(cell);
@@ -354,28 +344,9 @@ public class GameService : IGameService
     }
 
 
-    public bool IsPlayableTile(Position cell, Player player)
-    {
-        if (player == Player.Player1)
-        {
-            if (cell.X == 0 || (cell.X == 8 && (cell.Y == 0 || cell.Y == 7)))
-                return false;
-        }
-        else
-        {
-            if (cell.X == 9 || (cell.X == 1 && (cell.Y == 0 || cell.Y == 7)))
-                return false;
-        }
-
-        return true;
-    }
-
     public GameResponse MoveByAgent(AgentMoveRequest request)
     {
         var search = AlphaBetaSearch( request.Board, request.Player, MAX_DEPTH,int.MinValue,int.MaxValue);
-
-        if (search.BestMoves.Count == 0)
-            throw new InvalidOperationException("No legal AI moves");
 
         var chosen = search.BestMoves[Random.Shared.Next(search.BestMoves.Count)];
 
@@ -461,7 +432,6 @@ public class GameService : IGameService
                         break;
                 }
 
-
                 if (beta <= alpha) break;
             }
 
@@ -492,7 +462,7 @@ public class GameService : IGameService
                 }
             }
         }
-        Console.WriteLine($"Eval for Player {maximizingPlayer}: {score}");
+
         return score;
     }
 
