@@ -51,21 +51,6 @@ export default function Board({game}) {
 
         const laserDuration = (data.laser?.length ?? 0) * LASER_SPEED;
 
-        if (data.currentPlayer === "Player2") {
-            const start = performance.now();
-
-            pendingAgentMoveRef.current = moveByAgent(data.board, data.currentPlayer)
-                .then(result => {
-                    const end = performance.now();
-                    console.log(`Agent move took ${(end - start).toFixed(1)} ms`);
-                    return result;
-                });
-
-        } else {
-            pendingAgentMoveRef.current = null;
-        }
-
-
         setBoard(data.board);
         setCurrentPlayer(data.currentPlayer);
         setLaserPath(data.laser ?? []);
@@ -81,12 +66,23 @@ export default function Board({game}) {
 
         setTimeout(async () => {
             if (data.gameEnded) {
-                setGameOver(true);
-                alert("Game over!");
+                setTimeout(() => {
+                    setGameOver(true);
+                    alert("Game over!");
+                }, 500);
                 return;
             }
 
             setLaserPath([]);
+
+            if (data.currentPlayer === "Player2") {
+                pendingAgentMoveRef.current = moveByAgent(data.board, data.currentPlayer)
+                    .then(result => {
+                        return result;
+                    });
+            } else {
+                pendingAgentMoveRef.current = null;
+            }
 
             if (pendingAgentMoveRef.current) {
                 const agentResult = await pendingAgentMoveRef.current;
@@ -94,7 +90,6 @@ export default function Board({game}) {
                 handleLaserResult(agentResult);
             }
         }, laserDuration + LASER_AFTER_DELAY);
-
     }
 
 
