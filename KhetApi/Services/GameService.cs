@@ -159,11 +159,10 @@ public class GameService : IGameService
 
                 if (impact.GameOver)
                 {
-                    gameOver = true;
-                    break;
+                    return new ImpactResultModel(board, laserPath, true, GetNextPlayer(player), destroyedPiece);
                 }
 
-                if(impact.NewDirection is null)
+                if (impact.NewDirection is null)
                 {
                     break;
                 }
@@ -394,6 +393,15 @@ public class GameService : IGameService
 
     private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha,int beta)
     {
+        if (IsGameOver(board))
+        {
+            int score = player == Player.Player2
+                ? int.MinValue + depth
+                : int.MaxValue - depth;
+
+            return new SearchResult { Score = score };
+        }
+
         if (depth == 0)
             return new SearchResult { Score = EvaluateBoard(board) };
 
@@ -410,11 +418,11 @@ public class GameService : IGameService
 
                 foreach (var move in GenerateMoves(board, player, from, piece))
                 {
-                    var undo = MakeMoveInPlace(board, player, move);
+                    var undoInformation = MakeMoveInPlace(board, player, move);
 
                     int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta).Score;
 
-                    UndoMove(board, undo);
+                    UndoMove(board, undoInformation);
 
                     if (maximizing)
                     {
@@ -439,12 +447,13 @@ public class GameService : IGameService
                         beta = Math.Min(beta, score);
                     }
 
-                    if (beta <= alpha)
-                        break;
+                    //if (beta <= alpha)
+                    //    break;
                 }
 
-                if (beta <= alpha) break;
+                //if (beta <= alpha) break;
             }
+
 
         return new SearchResult
         {
@@ -474,8 +483,74 @@ public class GameService : IGameService
             }
         }
 
+        if (IsPharaohExposed(board, Player.Player2))
+            score -= 5000;
+
+        if (IsPharaohExposed(board, Player.Player1))
+            score += 5000;
+
         return score;
     }
+
+
+
+    private bool IsPharaohExposed(BoardModel board, Player player)
+    {
+        Position start = player == Player.Player1
+            ? new Position(9, 7)
+            : new Position(0, 0);
+
+        var sphinx = board.GetPieceAt(start);
+        if (sphinx == null) return false;
+
+        var dir = RotationMapper.ToLaserDirection(sphinx.Rotation);
+        var pos = start;
+
+        while (true)
+        {
+            pos = MoveOneStep(pos, dir);
+            if (!board.IsInsideBoard(pos))
+                return false;
+
+            var piece = board.GetPieceAt(pos);
+            if (piece == null)
+                continue;
+
+            if (piece.Type == PieceType.Pharaoh && piece.Owner == player)
+                return true;
+
+            var impact = CalculateImpact(dir, piece);
+
+            if (impact.GameOver || impact.NewDirection == null)
+                return false;
+
+            dir = impact.NewDirection.Value;
+        }
+    }
+
+
+    private bool IsGameOver(BoardModel board)
+    {
+        bool hasP1Pharaoh = false;
+        bool hasP2Pharaoh = false;
+
+        for (int y = 0; y < board.Pieces.Length; y++)
+        {
+            for (int x = 0; x < board.Pieces[y].Length; x++)
+            {
+                var piece = board.Pieces[y][x];
+                if (piece?.Type == PieceType.Pharaoh)
+                {
+                    if (piece.Owner == Player.Player1) hasP1Pharaoh = true;
+                    else hasP2Pharaoh = true;
+                }
+            }
+        }
+
+        return !hasP1Pharaoh || !hasP2Pharaoh;
+    }
+
+
 
 }
 
