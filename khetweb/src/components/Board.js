@@ -160,7 +160,6 @@ export default function Board({game}) {
     return (
         <div className="board-container">
             <div className="board-with-axes">
-                {/* Y-axis labels (left side) */}
                 <div className="y-axis">
                     {Array.from({ length: ROWS }, (_, i) => (
                         <div key={i} className="y-label">
@@ -169,8 +168,15 @@ export default function Board({game}) {
                     ))}
                 </div>
 
-                {/* Board and laser wrapper */}
-                <div className="board-and-bottom">
+                <div className="board-and-top">
+                    <div className="x-axis">
+                        {Array.from({ length: COLS }, (_, i) => (
+                            <div key={i} className="x-label">
+                                {i}
+                            </div>
+                        ))}
+                    </div>
+
                     <div className="board-wrapper" style={{ position: "relative" }}>
                         <div className="board" style={{ gridTemplateColumns: `repeat(${rows[0].length}, 50px)` }}>
                             {rows.map((row = [], y) =>
@@ -238,15 +244,6 @@ export default function Board({game}) {
                             width={boardWidth}
                             height={boardHeight}
                         />
-                    </div>
-
-                    {/* X-axis labels (bottom) */}
-                    <div className="x-axis">
-                        {Array.from({ length: COLS }, (_, i) => (
-                            <div key={i} className="x-label">
-                                {i}
-                            </div>
-                        ))}
                     </div>
                 </div>
             </div>
