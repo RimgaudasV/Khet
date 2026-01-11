@@ -75,29 +75,3 @@
 /* Apply player color to scarab stick */
 .scarab.player1::before { background-color: #00f; }
 .scarab.player2::before { background-color: #f00; }
-
-
-
-.disabled {
-    position: relative;
-    border: 0px; 
-    background-color: #fff;
-}
-
-
-
-.disabled::before {
-    content: '✕';
-    font-size: 36px;
-    font-weight: bold;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1;
-    opacity: 0.3;
-}
-
-/* Color by player */
-.disabled.player1::before { color: #f00; }
-.disabled.player2::before { color: #00f; }

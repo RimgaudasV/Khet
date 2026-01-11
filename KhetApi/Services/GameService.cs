@@ -6,7 +6,6 @@ using KhetApi.Models.Move;
 using KhetApi.Models.Piece;
 using KhetApi.Requests;
 using KhetApi.Responses;
-using System.Numerics;
 
 namespace KhetApi.Services;
 
@@ -15,7 +14,7 @@ public class GameService : IGameService
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
-    private int MAX_DEPTH = 3;
+    private int MAX_DEPTH = 2;
 
     private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
         { PieceType.Pharaoh, 10 },
@@ -43,17 +42,17 @@ public class GameService : IGameService
         
         var piece = board.GetPieceAt(request.CurrentPosition)
             ?? throw new InvalidOperationException("No piece found at the current position.");
-        var targetPiece = board.Pieces[request.NewPosition.Y][request.NewPosition.X];
+        var targetPiece = board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece;
 
         if (piece.Type == PieceType.Scarab && targetPiece is not null)
         {
-            board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = targetPiece;
-            board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
+            board.Cells[request.CurrentPosition.Y][request.CurrentPosition.X].Piece = targetPiece;
+            board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece = piece;
         }
         else
         {
-            board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
-            board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = null;
+            board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece = piece;
+            board.Cells[request.CurrentPosition.Y][request.CurrentPosition.X].Piece = null;
         }
 
         return ApplyImpacts(request.Board, request.Player);
@@ -70,13 +69,13 @@ public class GameService : IGameService
 
         if (move.Rotation == null)
         {
-            var oldPosition = board.Pieces[move.From.Y][move.From.X];
-            var newPosition = board.Pieces[move.To.Y][move.To.X];
+            var fromCell = board.Cells[move.From.Y][move.From.X];
+            var toCell = board.Cells[move.To.Y][move.To.X];
 
-            undo.Captured = newPosition;
+            undo.Captured = toCell.Piece;
 
-            board.Pieces[move.To.Y][move.To.X] = oldPosition;
-            board.Pieces[move.From.Y][move.From.X] = null;
+            toCell.Piece = fromCell.Piece;
+            fromCell.Piece = null;
         }
         else
         {
@@ -86,7 +85,6 @@ public class GameService : IGameService
         }
 
         var impact = ApplyImpacts(board, player);
-
         undo.Destroyed = impact.DestroyedPiece;
 
         return undo;
@@ -97,7 +95,7 @@ public class GameService : IGameService
         if (undo.Destroyed != null)
         {
             var destroyedPiece = undo.Destroyed;
-            board.Pieces[destroyedPiece.Position.Y][destroyedPiece.Position.X] = new PieceModel
+            board.Cells[destroyedPiece.Position.Y][destroyedPiece.Position.X].Piece = new PieceModel
             {
                 Type = destroyedPiece.Type,
                 Owner = destroyedPiece.Owner,
@@ -113,9 +111,11 @@ public class GameService : IGameService
             return;
         }
 
-        var moving = board.Pieces[undo.To.Y][undo.To.X];
-        board.Pieces[undo.From.Y][undo.From.X] = moving;
-        board.Pieces[undo.To.Y][undo.To.X] = undo.Captured;
+        var fromCell = board.Cells[undo.From.Y][undo.From.X];
+        var toCell = board.Cells[undo.To.Y][undo.To.X];
+
+        fromCell.Piece = toCell.Piece;
+        toCell.Piece = undo.Captured;
     }
 
 
@@ -151,9 +151,13 @@ public class GameService : IGameService
 
             laserPath.Add(currentPosition);
 
-            var piece = board.Pieces[currentPosition.Y][currentPosition.X];
+            var cell = board.Cells[currentPosition.Y][currentPosition.X];
+            var piece = cell.Piece;
 
-            if (piece != null && piece.Type != PieceType.Disabled)
+            if (cell.IsDisabled && piece == null)
+                continue;
+
+            if (piece != null)
             {
                 var impact = CalculateImpact(laserDirection, piece);
 
@@ -288,9 +292,14 @@ public class GameService : IGameService
             if (!board.IsInsideBoard(cell))
                 continue;
 
-            var targetPiece = board.Pieces[newY][newX];
+            var targetCell = board.Cells[newY][newX];
 
-            if (targetPiece == null || (targetPiece.Type == PieceType.Disabled && player == targetPiece.Owner) ||
+            if (targetCell.IsDisabled && targetCell.DisabledFor != player)
+                continue;
+
+            var targetPiece = targetCell.Piece;
+
+            if (targetPiece == null ||
                (piece.Type == PieceType.Scarab &&(targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)))
             {
                 validPositions.Add(cell);
@@ -304,7 +313,6 @@ public class GameService : IGameService
     {
         var allPositions = piece.Type switch
         {
-            PieceType.Disabled => new List<Rotation>(),
             PieceType.Scarab => new List<Rotation> { Rotation.LeftUp, Rotation.RightUp },
             PieceType.Pyramid => new List<Rotation> { Rotation.RightUp, Rotation.RightDown, Rotation.LeftDown, Rotation.LeftUp },
             PieceType.Anubis => new List<Rotation> { Rotation.Up, Rotation.Right, Rotation.Down, Rotation.Left },
@@ -409,8 +417,8 @@ public class GameService : IGameService
         int bestScore = maximizing ? int.MinValue : int.MaxValue;
         var bestMoves = new List<Move>();
 
-        for (int y = 0; y < board.Pieces.Length; y++)
-            for (int x = 0; x < board.Pieces[y].Length; x++)
+        for (int y = 0; y < board.Cells.Length; y++)
+            for (int x = 0; x < board.Cells[y].Length; x++)
             {
                 var from = new Position(x, y);
                 var piece = board.GetPieceAt(from);
@@ -447,11 +455,11 @@ public class GameService : IGameService
                         beta = Math.Min(beta, score);
                     }
 
-                    //if (beta <= alpha)
-                    //    break;
+                    if (beta <= alpha)
+                        break;
                 }
 
-                //if (beta <= alpha) break;
+                if (beta <= alpha) break;
             }
 
 
@@ -467,11 +475,11 @@ public class GameService : IGameService
     {
         int score = 0;
 
-        for (int y = 0; y < board.Pieces.Length; y++)
+        for (int y = 0; y < board.Cells.Length; y++)
         {
-            for (int x = 0; x < board.Pieces[y].Length; x++)
+            for (int x = 0; x < board.Cells[y].Length; x++)
             {
-                var piece = board.Pieces[y][x];
+                var piece = board.Cells[y][x].Piece;
                 if (piece != null && PieceValues.ContainsKey(piece.Type))
                 {
                     int value = PieceValues[piece.Type];
@@ -534,11 +542,11 @@ public class GameService : IGameService
         bool hasP1Pharaoh = false;
         bool hasP2Pharaoh = false;
 
-        for (int y = 0; y < board.Pieces.Length; y++)
+        for (int y = 0; y < board.Cells.Length; y++)
         {
-            for (int x = 0; x < board.Pieces[y].Length; x++)
+            for (int x = 0; x < board.Cells[y].Length; x++)
             {
-                var piece = board.Pieces[y][x];
+                var piece = board.Cells[y][x].Piece;
                 if (piece?.Type == PieceType.Pharaoh)
                 {
                     if (piece.Owner == Player.Player1) hasP1Pharaoh = true;

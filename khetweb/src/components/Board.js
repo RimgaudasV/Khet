@@ -37,7 +37,7 @@ export default function Board({game}) {
 
     if (!game || !board) return <div>Loading...</div>;
 
-    const rows = board.pieces;
+    const rows = board.cells;
 
     function clearSelection() {
         setSelectedPiece(null);
@@ -98,7 +98,8 @@ export default function Board({game}) {
 
 
     const handlePieceClick = async (x, y) => {
-        const piece = rows[y][x];
+        const cell = rows[y][x];
+        const piece = cell.piece;
         if (!piece) return;
         if (selectedPiece && selectedPiece.x === x && selectedPiece.y === y) {
             setSelectedPiece(null);
@@ -164,13 +165,15 @@ export default function Board({game}) {
             <div className="board" style={{ gridTemplateColumns: `repeat(${rows[0].length}, 50px)` }}>
                 {rows.map((row = [], y) =>
                     row.map((cell, x) => {
+                        const piece = cell.piece;
                         const isMoveTarget = isHighlighted(moves, x, y);
-                        const isOwnPiece = cell && cell.owner === currentPlayer;
-
+                        const isOwnPiece = piece && piece.owner === currentPlayer;
                         const cellClass = `
                             board-cell
+                            ${cell.isDisabled ? "disabled" : ""}
+                            ${cell.isDisabled ? cell.disabledFor.toLowerCase() : ""}
                             ${isMoveTarget ? "highlight" : "default"}
-                            ${(isMoveTarget || (isOwnPiece && cell.type.toLowerCase() !== "disabled"))  ? "clickable" : ""}
+                            ${(isMoveTarget || (isOwnPiece && !cell.isDisabled)) ? "clickable" : ""}
                         `;
 
                         return (
@@ -180,18 +183,19 @@ export default function Board({game}) {
                                 onClick={() => {
                                     if (isHighlighted(moves, x, y)) {
                                         handleMoveClick(x, y);
-                                    } else if (cell && cell.owner === currentPlayer) {
+                                    } else if (cell.piece && cell.piece.owner === currentPlayer) {
                                         handlePieceClick(x, y);
                                     }
                                 }}
                             >
-                                <Piece cell={cell}/>
+                                <Piece piece={cell.piece} disabled={cell.isDisabled} disabledFor={cell.disabledFor} />
+
 
                                 {destroyedPiece &&
                                 destroyedPiece.position.x === x &&
                                 destroyedPiece.position.y === y && (
                                     <Piece
-                                        cell={{
+                                        piece={{
                                             type: destroyedPiece.type,
                                             owner: destroyedPiece.owner,
                                             rotation: destroyedPiece.rotation

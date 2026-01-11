@@ -36,7 +36,7 @@ export function getLaserSegments(path, cellSize = 50, gap = 2) {
 export async function rotatePiece(selectedPiece, direction, validRotations, board, currentPlayer) {
     if (!selectedPiece) return;
     const { x, y } = selectedPiece;
-    const piece = board.pieces[y][x];
+    const piece = board.cells[y][x].piece;
 
     const currentIndex = validRotations.indexOf(piece.rotation);
     if (currentIndex === -1) return;

@@ -29,6 +29,19 @@
     background-color: transparent !important;
 }
 
+.board-cell.disabled {
+    filter: brightness(1.08);     /* slightly lighter */
+}
+
+/* Player1 safe tiles → light blue */
+.board-cell.disabled.player1 {
+    background-color: #cfe2ff;
+}
+
+/* Player2 safe tiles → light red */
+.board-cell.disabled.player2 {
+    background-color: #ffd6d6;
+}
 
 
 .explosion {

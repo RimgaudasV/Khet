@@ -7,6 +7,5 @@ public enum PieceType
     Anubis,
     Scarab,
     Pyramid,
-    Sphinx,
-    Disabled
+    Sphinx
 }

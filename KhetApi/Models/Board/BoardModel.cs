@@ -7,45 +7,31 @@ public class BoardModel
     public const int Width = 10;
     public const int Height = 8;
 
-    private static readonly HashSet<(int x, int y)> DisabledCellsPlayerOne = new()
-    {
-        (8, 0), (9, 0), (9, 1), (9, 2), (9, 5), (9, 6), (8, 7),
+    private static readonly HashSet<(int, int, Player)> DisabledSquares =
+    new(){
+        (1,0,Player.Player1),(9,0,Player.Player1),(9,1,Player.Player1),(9,2,Player.Player1), (9,3,Player.Player1),
+        (9,4,Player.Player1), (9,5,Player.Player1),(9,6,Player.Player1), (1,7,Player.Player1),
+
+        (8,0,Player.Player2),(0,1,Player.Player2),(0,2,Player.Player2), (0,3,Player.Player2), (0,4,Player.Player2),
+        (0,5,Player.Player2),(0,6,Player.Player2),(0,7,Player.Player2), (8,7,Player.Player2)
     };
-    private static readonly HashSet<(int x, int y)> DisabledCellsPlayerTwo = new()
-    {
-        (1, 0), (0, 1), (0, 2), (0, 5), (0, 6), (0, 7), (1, 7),
-    };
 
-    private bool IsDisabledCell(Position pos, out Player owner)
-    {
-        if (DisabledCellsPlayerOne.Contains((pos.X, pos.Y)))
-        {
-            owner = Player.Player1;
-            return true;
-        }
-
-        if (DisabledCellsPlayerTwo.Contains((pos.X, pos.Y)))
-        {
-            owner = Player.Player2;
-            return true;
-        }
-
-        owner = default;
-        return false;
-    }
-
-
-
-    public PieceModel?[][] Pieces { get; set; }
+    public Cell[][] Cells { get; set; }
 
     public BoardModel()
     {
-        Pieces = new PieceModel?[Height][];
+        Cells = new Cell[Height][];
+
         for (int y = 0; y < Height; y++)
-            Pieces[y] = new PieceModel?[Width];
+        {
+            Cells[y] = new Cell[Width];
+            for (int x = 0; x < Width; x++)
+                Cells[y][x] = new Cell();
+        }
 
         InitiateBoard();
     }
+
 
     private void InitiateBoard()
     {
@@ -88,40 +74,28 @@ public class BoardModel
         SetPiece(4, 4, PieceType.Scarab, Player.Player1, Rotation.LeftUp, true);
         SetPiece(5, 4, PieceType.Scarab, Player.Player1, Rotation.RightUp, true);
 
-        //Disabled
-        SetPiece(8, 0, PieceType.Disabled, Player.Player1, Rotation.None, false);
-        SetPiece(9, 0, PieceType.Disabled, Player.Player1, Rotation.None, false);
-        SetPiece(9, 1, PieceType.Disabled, Player.Player1, Rotation.None, false);
-        SetPiece(9, 2, PieceType.Disabled, Player.Player1, Rotation.None, false);
-        SetPiece(9, 5, PieceType.Disabled, Player.Player1, Rotation.None, false);
-        SetPiece(9, 6, PieceType.Disabled, Player.Player1, Rotation.None, false);
-        SetPiece(8, 7, PieceType.Disabled, Player.Player1, Rotation.None, false);
-
-        SetPiece(1, 0, PieceType.Disabled, Player.Player2, Rotation.None, false);
-        SetPiece(0, 1, PieceType.Disabled, Player.Player2, Rotation.None, false);
-        SetPiece(0, 2, PieceType.Disabled, Player.Player2, Rotation.None, false);
-        SetPiece(0, 5, PieceType.Disabled, Player.Player2, Rotation.None, false);
-        SetPiece(0, 6, PieceType.Disabled, Player.Player2, Rotation.None, false);
-        SetPiece(0, 7, PieceType.Disabled, Player.Player2, Rotation.None, false);
-        SetPiece(1, 7, PieceType.Disabled, Player.Player2, Rotation.None, false);
+        foreach (var (x, y, p) in DisabledSquares)
+        {
+            Cells[y][x].IsDisabled = true;
+            Cells[y][x].DisabledFor = p;
+        }
 
     }
 
-    private void SetPiece(int x, int y, PieceType type, Player owner, Rotation rot, bool? isMovable)
+    private void SetPiece(int x, int y, PieceType type, Player owner, Rotation rot, bool isMovable)
     {
-        Pieces[y][x] = new PieceModel
+        Cells[y][x].Piece = new PieceModel
         {
             Type = type,
             Owner = owner,
             Rotation = rot,
-            IsMovable = isMovable ?? false
+            IsMovable = isMovable
         };
     }
 
-    public PieceModel GetPieceAt(Position currentPosition)
-    {
-        return Pieces[currentPosition.Y][currentPosition.X]!;
-    }
+
+    public PieceModel? GetPieceAt(Position p)
+        => Cells[p.Y][p.X].Piece;
 
     public bool IsInsideBoard(Position currentPosition)
     {
@@ -129,22 +103,9 @@ public class BoardModel
                currentPosition.Y >= 0 && currentPosition.Y < Height;
     }
 
-    public void RemovePiece(Position currentPosition)
+    public void RemovePiece(Position pos)
     {
-        if (IsDisabledCell(currentPosition, out var owner))
-        {
-            Pieces[currentPosition.Y][currentPosition.X] = new PieceModel
-            {
-                Type = PieceType.Disabled,
-                Owner = owner,
-                Rotation = Rotation.None,
-                IsMovable = false
-            };
-        }
-        else
-        {
-            Pieces[currentPosition.Y][currentPosition.X] = null;
-        }
+        Cells[pos.Y][pos.X].Piece = null;
     }
 
 
