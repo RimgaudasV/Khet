@@ -1,4 +1,59 @@
 /* src/styles/board.css */
+
+.board-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.board-with-axes {
+    display: flex;
+    gap: 8px;
+}
+
+.y-axis {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    justify-content: flex-start;
+}
+
+.y-label {
+    width: 30px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    font-weight: bold;
+    color: #555;
+    font-size: 14px;
+}
+
+.board-and-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.x-axis {
+    display: flex;
+    gap: 2px;
+    padding-left: 0;
+}
+
+.x-label {
+    width: 50px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #555;
+    font-size: 14px;
+}
+
 .board {
     display: grid;
     gap: 2px;
@@ -63,4 +118,3 @@
         opacity: 0;
     }
 }
-

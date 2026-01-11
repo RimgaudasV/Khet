@@ -80,12 +80,13 @@ export default function Board({game}) {
         }, laserDuration);
 
         setTimeout(async () => {
-            setLaserPath([]);
             if (data.gameEnded) {
                 setGameOver(true);
                 alert("Game over!");
                 return;
             }
+
+            setLaserPath([]);
 
             if (pendingAgentMoveRef.current) {
                 const agentResult = await pendingAgentMoveRef.current;
@@ -93,6 +94,7 @@ export default function Board({game}) {
                 handleLaserResult(agentResult);
             }
         }, laserDuration + LASER_AFTER_DELAY);
+
     }
 
 
@@ -161,75 +163,98 @@ export default function Board({game}) {
 
 
     return (
-        <div className="board-wrapper" style={{ position: "relative" }}>
-            <div className="board" style={{ gridTemplateColumns: `repeat(${rows[0].length}, 50px)` }}>
-                {rows.map((row = [], y) =>
-                    row.map((cell, x) => {
-                        const piece = cell.piece;
-                        const isMoveTarget = isHighlighted(moves, x, y);
-                        const isOwnPiece = piece && piece.owner === currentPlayer;
-                        const cellClass = `
-                            board-cell
-                            ${cell.isDisabled ? "disabled" : ""}
-                            ${cell.isDisabled ? cell.disabledFor.toLowerCase() : ""}
-                            ${isMoveTarget ? "highlight" : "default"}
-                            ${(isMoveTarget || (isOwnPiece && !cell.isDisabled)) ? "clickable" : ""}
-                        `;
+        <div className="board-container">
+            <div className="board-with-axes">
+                {/* Y-axis labels (left side) */}
+                <div className="y-axis">
+                    {Array.from({ length: ROWS }, (_, i) => (
+                        <div key={i} className="y-label">
+                            {i}
+                        </div>
+                    ))}
+                </div>
 
-                        return (
-                            <div
-                                key={`${x}-${y}`}
-                                className={cellClass}
-                                onClick={() => {
-                                    if (isHighlighted(moves, x, y)) {
-                                        handleMoveClick(x, y);
-                                    } else if (cell.piece && cell.piece.owner === currentPlayer) {
-                                        handlePieceClick(x, y);
-                                    }
-                                }}
-                            >
-                                <Piece piece={cell.piece} disabled={cell.isDisabled} disabledFor={cell.disabledFor} />
+                {/* Board and laser wrapper */}
+                <div className="board-and-bottom">
+                    <div className="board-wrapper" style={{ position: "relative" }}>
+                        <div className="board" style={{ gridTemplateColumns: `repeat(${rows[0].length}, 50px)` }}>
+                            {rows.map((row = [], y) =>
+                                row.map((cell, x) => {
+                                    const piece = cell.piece;
+                                    const isMoveTarget = isHighlighted(moves, x, y);
+                                    const isOwnPiece = piece && piece.owner === currentPlayer;
+                                    const cellClass = `
+                                        board-cell
+                                        ${cell.isDisabled ? "disabled" : ""}
+                                        ${cell.isDisabled ? cell.disabledFor.toLowerCase() : ""}
+                                        ${isMoveTarget ? "highlight" : "default"}
+                                        ${(isMoveTarget || (isOwnPiece && !cell.isDisabled)) ? "clickable" : ""}
+                                    `;
+
+                                    return (
+                                        <div
+                                            key={`${x}-${y}`}
+                                            className={cellClass}
+                                            onClick={() => {
+                                                if (isHighlighted(moves, x, y)) {
+                                                    handleMoveClick(x, y);
+                                                } else if (cell.piece && cell.piece.owner === currentPlayer) {
+                                                    handlePieceClick(x, y);
+                                                }
+                                            }}
+                                        >
+                                            <Piece piece={cell.piece} disabled={cell.isDisabled} disabledFor={cell.disabledFor} />
 
 
-                                {destroyedPiece &&
-                                destroyedPiece.position.x === x &&
-                                destroyedPiece.position.y === y && (
-                                    <Piece
-                                        piece={{
-                                            type: destroyedPiece.type,
-                                            owner: destroyedPiece.owner,
-                                            rotation: destroyedPiece.rotation
-                                        }}
-                                    />
-                                )}
-                                {explosion &&
-                                explosion.position.x === x &&
-                                explosion.position.y === y && (
-                                    <div className="explosion" />
-                                )}
+                                            {destroyedPiece &&
+                                            destroyedPiece.position.x === x &&
+                                            destroyedPiece.position.y === y && (
+                                                <Piece
+                                                    piece={{
+                                                        type: destroyedPiece.type,
+                                                        owner: destroyedPiece.owner,
+                                                        rotation: destroyedPiece.rotation
+                                                    }}
+                                                />
+                                            )}
+                                            {explosion &&
+                                            explosion.position.x === x &&
+                                            explosion.position.y === y && (
+                                                <div className="explosion" />
+                                            )}
 
-                                {
-                                selectedPiece?.x === x && selectedPiece?.y === y && validRotations.length > 0 && (
-                                    <div className="rotation-overlay">
-                                        <button onClick={() => handleRotate(-1)}>⟲</button>
-                                        <button onClick={() => handleRotate(1)}>⟳</button>
-                                    </div>
-                                )}
+                                            {
+                                            selectedPiece?.x === x && selectedPiece?.y === y && validRotations.length > 0 && (
+                                                <div className="rotation-overlay">
+                                                    <button onClick={() => handleRotate(-1)}>⟲</button>
+                                                    <button onClick={() => handleRotate(1)}>⟳</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        <Laser
+                            path={laserPath}
+                            cellSize={CELL_SIZE}
+                            gap={GAP}
+                            width={boardWidth}
+                            height={boardHeight}
+                        />
+                    </div>
+
+                    {/* X-axis labels (bottom) */}
+                    <div className="x-axis">
+                        {Array.from({ length: COLS }, (_, i) => (
+                            <div key={i} className="x-label">
+                                {i}
                             </div>
-                        );
-                    })
-                )}
-
+                        ))}
+                    </div>
+                </div>
             </div>
-
-            <Laser
-                path={laserPath}
-                cellSize={CELL_SIZE}
-                gap={GAP}
-                width={boardWidth}
-                height={boardHeight}
-            />
-
         </div>
     );
 }
