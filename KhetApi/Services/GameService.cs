@@ -72,10 +72,21 @@ public class GameService : IGameService
             var fromCell = board.Cells[move.From.Y][move.From.X];
             var toCell = board.Cells[move.To.Y][move.To.X];
 
-            undo.Captured = toCell.Piece;
+            var movingPiece = fromCell.Piece;
+            var targetPiece = toCell.Piece;
 
-            toCell.Piece = fromCell.Piece;
-            fromCell.Piece = null;
+            undo.Captured = targetPiece;
+
+            if (movingPiece.Type == PieceType.Scarab && targetPiece != null)
+            {
+                toCell.Piece = movingPiece;
+                fromCell.Piece = targetPiece;
+            }
+            else
+            {
+                toCell.Piece = movingPiece;
+                fromCell.Piece = null;
+            }
         }
         else
         {
@@ -89,7 +100,6 @@ public class GameService : IGameService
 
         return undo;
     }
-
     private void UndoMove(BoardModel board, UndoState undo)
     {
         if (undo.Destroyed != null)
@@ -339,28 +349,31 @@ public class GameService : IGameService
     private IEnumerable<Move> GenerateMoves(BoardModel board, Player player, Position from, PieceModel piece)
     {
         var valid = GetValidMoves(board, player, from);
+        var moves = new List<Move>();
 
         foreach (var to in valid.ValidPositions)
         {
-            yield return new Move
+            moves.Add(new Move
             {
                 From = from,
                 To = to,
                 Rotation = null
-            };
+            });
         }
 
         foreach (var rot in valid.ValidRotations)
         {
             if (piece.Rotation == rot) continue;
 
-            yield return new Move
+            moves.Add(new Move
             {
                 From = from,
                 To = from,
                 Rotation = rot
-            };
+            });
         }
+
+        return moves.OrderBy(_ => Random.Shared.Next());
     }
 
 
