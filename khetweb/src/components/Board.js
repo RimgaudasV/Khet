@@ -206,7 +206,6 @@ export default function Board({game}) {
                                         >
                                             <Piece piece={cell.piece} disabled={cell.isDisabled} disabledFor={cell.disabledFor} />
 
-
                                             {destroyedPiece &&
                                             destroyedPiece.position.x === x &&
                                             destroyedPiece.position.y === y && (
@@ -223,14 +222,6 @@ export default function Board({game}) {
                                             explosion.position.y === y && (
                                                 <div className="explosion" />
                                             )}
-
-                                            {
-                                            selectedPiece?.x === x && selectedPiece?.y === y && validRotations.length > 0 && (
-                                                <div className="rotation-overlay">
-                                                    <button onClick={() => handleRotate(-1)}>⟲</button>
-                                                    <button onClick={() => handleRotate(1)}>⟳</button>
-                                                </div>
-                                            )}
                                         </div>
                                     );
                                 })
@@ -245,6 +236,14 @@ export default function Board({game}) {
                             height={boardHeight}
                         />
                     </div>
+
+                    {selectedPiece && validRotations.length > 0 && (
+                        <div className="rotation-controls">
+                            <span className="rotation-label">Rotate piece:</span>
+                            <button onClick={() => handleRotate(-1)}>⟲ Counter-clockwise</button>
+                            <button onClick={() => handleRotate(1)}>⟳ Clockwise</button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

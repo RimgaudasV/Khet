@@ -8,6 +8,7 @@
     font-size: 32px;
     border: 2px solid black;
     box-sizing: border-box;
+    pointer-events: none;
 }
 
 /* Player colors */
