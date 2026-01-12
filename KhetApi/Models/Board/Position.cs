@@ -1,4 +1,6 @@
-﻿namespace KhetApi.Models.Board;
+﻿using KhetApi.Models.Piece;
+
+namespace KhetApi.Models.Board;
 
 
 public class Position
@@ -10,4 +12,5 @@ public class Position
         X = x;
         Y = y;
     }
+
 }

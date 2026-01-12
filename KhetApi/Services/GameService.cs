@@ -1,7 +1,9 @@
 ﻿using KhetApi.Interfaces;
+using KhetApi.Mappers;
+using KhetApi.Models;
 using KhetApi.Models.Board;
+using KhetApi.Models.Move;
 using KhetApi.Models.Piece;
-using KhetApi.Models.Player;
 using KhetApi.Requests;
 using KhetApi.Responses;
 
@@ -12,8 +14,15 @@ public class GameService : IGameService
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
-    private BoardModel _board;
-    private bool _gameOver;
+    private int MAX_DEPTH = 2;
+
+    private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
+        { PieceType.Pharaoh, 10 },
+        { PieceType.Scarab, 2 },
+        { PieceType.Pyramid, 1 },
+        { PieceType.Anubis, 3 }
+    };
+
 
     public GameResponse StartGame()
     {
@@ -27,70 +36,136 @@ public class GameService : IGameService
         };
     }
 
-    public GameResponse MakeMove(MoveRequest request)
+    public ImpactResultModel MakeMove(MoveRequest request)
     {
-        _board = request.Board;
+        var board = request.Board;
+        
+        var piece = board.GetPieceAt(request.CurrentPosition)
+            ?? throw new InvalidOperationException("No piece found at the current position.");
+        var targetPiece = board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece;
 
-        DoMove(request);
-
-        var laser = LaserMovement(request.Player);
-
-        return new GameResponse
+        if (piece.Type == PieceType.Scarab && targetPiece is not null)
         {
-            Board = _board,
-            Laser = laser,
-            CurrentPlayer = GetNextPlayer(request.Player),
-            GameEnded = _gameOver
-        };
+            board.Cells[request.CurrentPosition.Y][request.CurrentPosition.X].Piece = targetPiece;
+            board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece = piece;
+        }
+        else
+        {
+            board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece = piece;
+            board.Cells[request.CurrentPosition.Y][request.CurrentPosition.X].Piece = null;
+        }
+
+        return ApplyImpacts(request.Board, request.Player);
+
     }
 
-    private void DoMove(MoveRequest request)
+    private UndoState MakeMoveInPlace(BoardModel board, Player player, Move move)
     {
-        var piece = _board.GetPieceAt(request.CurrentPosition)
-            ?? throw new InvalidOperationException("No piece found at the current position.");
-
-        if (request.NewRotation is not null)
-            piece.Rotation = request.NewRotation.Value;
-
-        if (request.NewPosition is not null)
+        var undo = new UndoState
         {
-            var targetPiece = _board.GetPieceAt(request.NewPosition);
-            if (piece.Type == PieceType.Scarab && targetPiece is not null)
-            {
-                _board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = targetPiece;
-                _board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
+            From = move.From,
+            To = move.To
+        };
 
+        if (move.Rotation == null)
+        {
+            var fromCell = board.Cells[move.From.Y][move.From.X];
+            var toCell = board.Cells[move.To.Y][move.To.X];
+
+            var movingPiece = fromCell.Piece;
+            var targetPiece = toCell.Piece;
+
+            undo.Captured = targetPiece;
+
+            if (movingPiece.Type == PieceType.Scarab && targetPiece != null)
+            {
+                toCell.Piece = movingPiece;
+                fromCell.Piece = targetPiece;
             }
             else
             {
-                _board.Pieces[request.NewPosition.Y][request.NewPosition.X] = piece;
-                _board.Pieces[request.CurrentPosition.Y][request.CurrentPosition.X] = null;
+                toCell.Piece = movingPiece;
+                fromCell.Piece = null;
             }
         }
+        else
+        {
+            var piece = board.GetPieceAt(move.From)!;
+            undo.OldRotation = piece.Rotation;
+            piece.Rotation = move.Rotation.Value;
+        }
+
+        var impact = ApplyImpacts(board, player);
+        undo.Destroyed = impact.DestroyedPiece;
+
+        return undo;
+    }
+    private void UndoMove(BoardModel board, UndoState undo)
+    {
+        if (undo.Destroyed != null)
+        {
+            var destroyedPiece = undo.Destroyed;
+            board.Cells[destroyedPiece.Position.Y][destroyedPiece.Position.X].Piece = new PieceModel
+            {
+                Type = destroyedPiece.Type,
+                Owner = destroyedPiece.Owner,
+                Rotation = destroyedPiece.Rotation,
+                IsMovable = true
+            };
+        }
+
+        if (undo.OldRotation != null)
+        {
+            var piece = board.GetPieceAt(undo.From)!;
+            piece.Rotation = undo.OldRotation.Value;
+            return;
+        }
+
+        var fromCell = board.Cells[undo.From.Y][undo.From.X];
+        var toCell = board.Cells[undo.To.Y][undo.To.X];
+
+        fromCell.Piece = toCell.Piece;
+        toCell.Piece = undo.Captured;
     }
 
-    private List<Position> LaserMovement(Player player)
+
+
+    public ImpactResultModel Rotate(RotationRequest request)
+    {
+        var piece = request.Board.GetPieceAt(request.CurrentPosition)
+            ?? throw new InvalidOperationException("No piece found at the current position.");
+        piece.Rotation = request.NewRotation;
+
+        return ApplyImpacts(request.Board, request.Player);
+    }
+
+    private ImpactResultModel ApplyImpacts(BoardModel board, Player player)
     {
         var currentPosition = player == Player.Player1
             ? new Position(9, 7)
             : new Position(0, 0);
 
-        var laserDirection = player == Player.Player1
-            ? LaserDirection.Up
-            : LaserDirection.Down;
+        var laserDirection = RotationMapper.ToLaserDirection(board.GetPieceAt(currentPosition).Rotation);
 
         var laserPath = new List<Position> { currentPosition };
+
+        bool gameOver = false;
+        DestroyedPiece? destroyedPiece = null;
 
         while (true)
         {
             currentPosition = MoveOneStep(currentPosition, laserDirection);
 
-            if (!_board.IsInsideBoard(currentPosition))
+            if (!board.IsInsideBoard(currentPosition))
                 break;
 
             laserPath.Add(currentPosition);
 
-            var piece = _board.GetPieceAt(currentPosition);
+            var cell = board.Cells[currentPosition.Y][currentPosition.X];
+            var piece = cell.Piece;
+
+            if (cell.IsDisabled && piece == null)
+                continue;
 
             if (piece != null)
             {
@@ -98,28 +173,31 @@ public class GameService : IGameService
 
                 if (impact.GameOver)
                 {
-                    _gameOver = true;
-                    break;
+                    return new ImpactResultModel(board, laserPath, true, GetNextPlayer(player), destroyedPiece);
                 }
 
-                if(impact.NewDirection is null)
+                if (impact.NewDirection is null)
                 {
                     break;
                 }
-                else
-                {
-                    laserDirection = impact.NewDirection.Value;
-                }
-
                 if (impact.DestroyPiece)
                 {
-                    _board.RemovePiece(currentPosition);
+                    destroyedPiece = new DestroyedPiece { 
+                        Type = piece.Type,
+                        Owner = piece.Owner,
+                        Position = currentPosition,
+                        Rotation = piece.Rotation
+                    };
+                    board.RemovePiece(currentPosition);
                     break;
                 }
+
+                laserDirection = impact.NewDirection.Value;
             }
         }
+        var nextPlayer = GetNextPlayer(player);
 
-        return laserPath;
+        return new ImpactResultModel (board, laserPath, gameOver, nextPlayer, destroyedPiece);
     }
 
     private Position MoveOneStep(Position pos, LaserDirection dir) => dir switch
@@ -148,7 +226,7 @@ public class GameService : IGameService
             (LaserDirection.Right, Rotation.LeftDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Down, false, false),
             (LaserDirection.Right, Rotation.LeftUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Up, false, false),
 
-            // PYRAMID BACKSIDES → destroy
+            // PYRAMID BACKSIDES
             (LaserDirection.Up, Rotation.Up, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
             (LaserDirection.Down, Rotation.Down, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
             (LaserDirection.Left, Rotation.Left, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
@@ -190,69 +268,316 @@ public class GameService : IGameService
         };
     }
 
-
     public Player GetNextPlayer(Player player)
         => player == Player.Player1 ? Player.Player2 : Player.Player1;
 
-    public ValidMovesResponse GetValidMoves(ValidMoveRequest request)
+    public ValidMovesResponse GetValidMoves(BoardModel board, Player player, Position position)
     {
-        _board = request.Board;
-        var piece = _board.GetPieceAt(request.CurrentPosition);
-        return new ValidMovesResponse
+        var piece = board.GetPieceAt(position)??
+            throw new InvalidOperationException("No piece found at the specified position.");
+
+        var response =  new ValidMovesResponse
         {
-            ValidPositions = GetValidPositions(request.CurrentPosition, piece),
+            ValidPositions = GetValidPositions(position, piece, board, player),
             ValidRotations = GetValidRotations(piece)
         };
+        return response;
 
     }
 
-    public List<Position> GetValidPositions(Position position, PieceModel piece)
+    public List<Position> GetValidPositions(Position currentPosition, PieceModel piece, BoardModel board, Player player)
     {
-        var validPositions = new List<Position>();
+        if (!piece.IsMovable)
+            return new List<Position>();
 
-        if (piece == null || !piece.IsMovable)
-            return validPositions;
+        var validPositions = new List<Position>();
 
         for (int i = 0; i < 8; i++)
         {
-            int newX = position.X + dx[i];
-            int newY = position.Y + dy[i];
+            int newX = currentPosition.X + dx[i];
+            int newY = currentPosition.Y + dy[i];
 
-            var newPos = new Position(newX, newY);
+            var cell = new Position(newX, newY);
 
-            if (!_board.IsInsideBoard(newPos))
+            if (!board.IsInsideBoard(cell))
                 continue;
 
-            var targetPiece = _board.GetPieceAt(newPos);
+            var targetCell = board.Cells[newY][newX];
+
+            if (targetCell.IsDisabled && targetCell.DisabledFor != player)
+                continue;
+
+            var targetPiece = targetCell.Piece;
 
             if (targetPiece == null ||
-               (piece.Type == PieceType.Scarab &&
-                (targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)))
+               (piece.Type == PieceType.Scarab &&(targetPiece.Type == PieceType.Pyramid || targetPiece.Type == PieceType.Anubis)))
             {
-                validPositions.Add(newPos);
+                validPositions.Add(cell);
             }
         }
 
         return validPositions;
     }
 
-
-
-
-
     public List<Rotation> GetValidRotations(PieceModel piece)
     {
-        return piece.Type switch
+        var allPositions = piece.Type switch
         {
             PieceType.Scarab => new List<Rotation> { Rotation.LeftUp, Rotation.RightUp },
-            PieceType.Pyramid => new List<Rotation> { Rotation.RightUp, Rotation.LeftUp, Rotation.RightDown, Rotation.LeftDown },
-            PieceType.Sphinx => new List<Rotation>(),
+            PieceType.Pyramid => new List<Rotation> { Rotation.RightUp, Rotation.RightDown, Rotation.LeftDown, Rotation.LeftUp },
+            PieceType.Anubis => new List<Rotation> { Rotation.Up, Rotation.Right, Rotation.Down, Rotation.Left },
+            PieceType.Sphinx => piece.Owner == Player.Player1
+                ? new List<Rotation> { Rotation.Up, Rotation.Left }
+                : new List<Rotation> { Rotation.Down, Rotation.Right },
             _ => new List<Rotation> { Rotation.Up, Rotation.Right, Rotation.Down, Rotation.Left }
+        };
+
+        if (allPositions.Count == 0)
+            return new List<Rotation>();
+
+        var index = allPositions.IndexOf(piece.Rotation);
+        var count = allPositions.Count;
+
+        var previous = allPositions[(index - 1 + count) % count];
+        var current = allPositions[index];
+        var next = allPositions[(index + 1) % count];
+
+        return new List<Rotation> { previous, current, next };
+    }
+
+
+    private IEnumerable<Move> GenerateMoves(BoardModel board, Player player, Position from, PieceModel piece)
+    {
+        var valid = GetValidMoves(board, player, from);
+        var moves = new List<Move>();
+
+        foreach (var to in valid.ValidPositions)
+        {
+            moves.Add(new Move
+            {
+                From = from,
+                To = to,
+                Rotation = null
+            });
+        }
+
+        foreach (var rot in valid.ValidRotations)
+        {
+            if (piece.Rotation == rot) continue;
+
+            moves.Add(new Move
+            {
+                From = from,
+                To = from,
+                Rotation = rot
+            });
+        }
+
+        return moves.OrderBy(_ => Random.Shared.Next());
+    }
+
+
+    public GameResponse MoveByAgent(AgentMoveRequest request)
+    {
+        var search = AlphaBetaSearch( request.Board, request.Player, MAX_DEPTH,int.MinValue,int.MaxValue);
+
+        var chosen = search.BestMoves[Random.Shared.Next(search.BestMoves.Count)];
+
+        ImpactResultModel result = chosen.Rotation != null
+            ? Rotate(new RotationRequest
+            {
+                Board = request.Board,
+                Player = request.Player,
+                CurrentPosition = chosen.From,
+                NewRotation = chosen.Rotation.Value
+            })
+            : MakeMove(new MoveRequest
+            {
+                Board = request.Board,
+                Player = request.Player,
+                CurrentPosition = chosen.From,
+                NewPosition = chosen.To
+            });
+
+        return new GameResponse
+        {
+            Board = result.Board,
+            CurrentPlayer = result.NextPlayer,
+            GameEnded = result.GameOver,
+            Laser = result.LaserPath,
+            DestroyedPiece = result.DestroyedPiece
         };
     }
 
 
+
+
+    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha,int beta)
+    {
+        if (IsGameOver(board))
+        {
+            int score = player == Player.Player2
+                ? int.MinValue + depth
+                : int.MaxValue - depth;
+
+            return new SearchResult { Score = score };
+        }
+
+        if (depth == 0)
+            return new SearchResult { Score = EvaluateBoard(board) };
+
+        bool maximizing = player == Player.Player2;
+        int bestScore = maximizing ? int.MinValue : int.MaxValue;
+        var bestMoves = new List<Move>();
+
+        for (int y = 0; y < board.Cells.Length; y++)
+            for (int x = 0; x < board.Cells[y].Length; x++)
+            {
+                var from = new Position(x, y);
+                var piece = board.GetPieceAt(from);
+                if (piece == null || piece.Owner != player) continue;
+
+                foreach (var move in GenerateMoves(board, player, from, piece))
+                {
+                    var undoInformation = MakeMoveInPlace(board, player, move);
+
+                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta).Score;
+
+                    UndoMove(board, undoInformation);
+
+                    if (maximizing)
+                    {
+                        if (score > bestScore)
+                        {
+                            bestScore = score;
+                            bestMoves.Clear();
+                        }
+                        if (score == bestScore)
+                            bestMoves.Add(move);
+                        alpha = Math.Max(alpha, score);
+                    }
+                    else
+                    {
+                        if (score < bestScore)
+                        {
+                            bestScore = score;
+                            bestMoves.Clear();
+                        }
+                        if (score == bestScore)
+                            bestMoves.Add(move);
+                        beta = Math.Min(beta, score);
+                    }
+
+                    if (beta <= alpha)
+                        break;
+                }
+
+                if (beta <= alpha) break;
+            }
+
+
+        return new SearchResult
+        {
+            Score = bestScore,
+            BestMoves = bestMoves
+        };
+    }
+
+
+    private int EvaluateBoard(BoardModel board)
+    {
+        int score = 0;
+
+        for (int y = 0; y < board.Cells.Length; y++)
+        {
+            for (int x = 0; x < board.Cells[y].Length; x++)
+            {
+                var piece = board.Cells[y][x].Piece;
+                if (piece != null && PieceValues.ContainsKey(piece.Type))
+                {
+                    int value = PieceValues[piece.Type];
+                    if (piece.Owner == Player.Player2)
+                        score += value;
+                    else
+                        score -= value;
+                }
+            }
+        }
+
+        if (IsPharaohExposed(board, Player.Player2))
+            score -= 5000;
+
+        if (IsPharaohExposed(board, Player.Player1))
+            score += 5000;
+
+        return score;
+    }
+
+
+
+    private bool IsPharaohExposed(BoardModel board, Player player)
+    {
+        Position start = player == Player.Player1
+            ? new Position(9, 7)
+            : new Position(0, 0);
+
+        var sphinx = board.GetPieceAt(start);
+        if (sphinx == null) return false;
+
+        var dir = RotationMapper.ToLaserDirection(sphinx.Rotation);
+        var pos = start;
+
+        while (true)
+        {
+            pos = MoveOneStep(pos, dir);
+            if (!board.IsInsideBoard(pos))
+                return false;
+
+            var piece = board.GetPieceAt(pos);
+            if (piece == null)
+                continue;
+
+            if (piece.Type == PieceType.Pharaoh && piece.Owner == player)
+                return true;
+
+            var impact = CalculateImpact(dir, piece);
+
+            if (impact.GameOver || impact.NewDirection == null)
+                return false;
+
+            dir = impact.NewDirection.Value;
+        }
+    }
+
+
+    private bool IsGameOver(BoardModel board)
+    {
+        bool hasP1Pharaoh = false;
+        bool hasP2Pharaoh = false;
+
+        for (int y = 0; y < board.Cells.Length; y++)
+        {
+            for (int x = 0; x < board.Cells[y].Length; x++)
+            {
+                var piece = board.Cells[y][x].Piece;
+                if (piece?.Type == PieceType.Pharaoh)
+                {
+                    if (piece.Owner == Player.Player1) hasP1Pharaoh = true;
+                    else hasP2Pharaoh = true;
+                }
+            }
+        }
+
+        return !hasP1Pharaoh || !hasP2Pharaoh;
+    }
+
+
+
 }
+
+
+
+
 
 
 

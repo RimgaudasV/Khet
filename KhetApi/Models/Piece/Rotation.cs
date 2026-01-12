@@ -8,5 +8,6 @@ public enum Rotation
     RightDown,
     LeftDown,
     Right,
-    Left
+    Left,
+    None
 }

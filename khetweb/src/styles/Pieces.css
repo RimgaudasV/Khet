@@ -8,6 +8,7 @@
     font-size: 32px;
     border: 2px solid black;
     box-sizing: border-box;
+    pointer-events: none;
 }
 
 /* Player colors */
@@ -25,9 +26,25 @@
 
 /* Anubis */
 .anubis { width: 12px; }
+.anubis.up    { transform: rotate(0deg); }
+.anubis.right { transform: rotate(90deg); }
+.anubis.down  { transform: rotate(180deg); }
+.anubis.left  { transform: rotate(270deg); }
 
 /* Sphinx */
 .sphinx { height: 23px; } /* half of 46px */
+.sphinx.up {
+    transform: rotate(0deg);
+}
+.sphinx.down {
+    transform: rotate(180deg);
+}
+.sphinx.right {
+    transform: rotate(90deg);
+}
+.sphinx.left {
+    transform: rotate(270deg);
+}
 
 /* Scarab - stick figure on diagonal */
 .scarab {

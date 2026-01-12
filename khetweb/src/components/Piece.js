@@ -1,14 +1,26 @@
-// src/components/Piece.js
+
 import React from "react";
 import "../styles/Pieces.css";
 
-export default function Piece({ cell }) {
-    if (!cell) return null;
+export default function Piece({ piece, disabled, disabledFor }) {
+    if (!piece) return null;
 
-    const playerClass = cell.owner === 1 ? "player1" : "player2";
-    const rotationClass = cell.rotation ? cell.rotation.toLowerCase() : "";
+    const playerClass =
+        piece.owner === "Player1" ? "player1" : "player2";
 
-    return (
-        <div className={`piece ${cell.type.toLowerCase()} ${playerClass} ${rotationClass}`} />
-    );
+    const rotationClass =
+        piece.rotation ? piece.rotation.toLowerCase() : "";
+
+    const classes = [
+        "piece",
+        piece.type.toLowerCase(),
+        playerClass,
+        rotationClass
+    ];
+
+    // Optional: visual hint for disabled tiles
+    if (disabled) classes.push("disabled-tile");
+
+    return <div className={classes.join(" ")} />;
 }
+

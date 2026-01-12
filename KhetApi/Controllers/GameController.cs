@@ -16,16 +16,44 @@ public class GameController(IGameService gameService) : ControllerBase
         return gameService.StartGame();
     }
 
-    [HttpPost("makeMove")]
+    [HttpPost("move")]
     public GameResponse Move(MoveRequest request)
     {
-        return gameService.MakeMove(request);
+        var results =  gameService.MakeMove(request);
+        return new GameResponse
+        {
+            Board = results.Board,
+            Laser = results.LaserPath,
+            CurrentPlayer = results.NextPlayer,
+            GameEnded = results.GameOver,
+            DestroyedPiece = results.DestroyedPiece
+        };
+    }
+    [HttpPost("rotate")]
+    public GameResponse Rotate(RotationRequest request)
+    {
+        var results = gameService.Rotate(request);
+        return new GameResponse
+        {
+            Board = results.Board,
+            Laser = results.LaserPath,
+            CurrentPlayer = results.NextPlayer,
+            GameEnded = results.GameOver,
+            DestroyedPiece = results.DestroyedPiece
+        };
     }
 
     [HttpPost("validMoves")]
     public ValidMovesResponse GetValidMoves([FromBody] ValidMoveRequest request)
     {
-        return gameService.GetValidMoves(request);
+        return gameService.GetValidMoves(request.Board, request.Player, request.CurrentPosition);
+    }
+
+    [HttpPost("moveByAgent")]
+
+    public GameResponse MoveByAgent([FromBody] AgentMoveRequest request)
+    {
+        return gameService.MoveByAgent(request);
     }
 
 }
