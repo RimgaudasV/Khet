@@ -14,7 +14,7 @@ public class GameService : IGameService
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
-    private int MAX_DEPTH = 2;
+    private int MAX_DEPTH = 3;
 
     private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
         { PieceType.Pyramid, 1 },
@@ -370,7 +370,25 @@ public class GameService : IGameService
     {
         var search = AlphaBetaSearch( request.Board, request.Player, MAX_DEPTH, int.MinValue, int.MaxValue, false);
 
+        Console.WriteLine($"\n=== AGENT DECISION ({request.Player}) ===");
+        Console.WriteLine($"Best score: {search.Score}");
+        Console.WriteLine($"Number of best moves: {search.BestMoves.Count}");
+
+        foreach (var move in search.BestMoves)
+        {
+            var testUndo = MakeMoveInPlace(request.Board, request.Player, move);
+            Console.WriteLine($"Move: {move.From} -> {move.To}, Rot: {move.Rotation}");
+            if (testUndo.Destroyed != null)
+            {
+                Console.WriteLine($"  !! Destroys {testUndo.Destroyed.Owner}'s {testUndo.Destroyed.Type}");
+            }
+            UndoMove(request.Board, testUndo);
+        }
+
+
         var chosen = search.BestMoves[Random.Shared.Next(search.BestMoves.Count)];
+        Console.WriteLine($"Chosen: {chosen.From} -> {chosen.To}, Rot: {chosen.Rotation}");
+
 
         ImpactResultModel result = chosen.Rotation != null
             ? Rotate(new RotationRequest
@@ -405,10 +423,10 @@ public class GameService : IGameService
 
 
 
-    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha, int beta, bool gameOver)
+    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha, int beta, bool gameOver, Player? winner = null)
     {
         if (depth == 0 || gameOver)
-            return new SearchResult { Score = EvaluateBoard(board, gameOver, GetNextPlayer(player), depth) };
+            return new SearchResult { Score = EvaluateBoard(board, gameOver, depth, winner) };
 
         bool maximizing = player == Player.Player2;
         int bestScore = maximizing ? int.MinValue : int.MaxValue;
@@ -426,7 +444,13 @@ public class GameService : IGameService
                     var undoInformation = MakeMoveInPlace(board, player, move);
                     gameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
 
-                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, gameOver).Score;
+                    Player? winnerPlayer = null;
+                    if (gameOver)
+                    {
+                        winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
+                    }
+                     
+                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, gameOver, winnerPlayer).Score;
 
                     UndoMove(board, undoInformation);
 
@@ -469,12 +493,13 @@ public class GameService : IGameService
     }
 
 
-    private int EvaluateBoard(BoardModel board, bool gameOver, Player player, int depth)
+    private int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner)
     {
         int score = 0;
 
-        if (gameOver) {
-            return player == Player.Player2 ? int.MinValue + depth * 10 : int.MaxValue - depth * 10;
+        if (gameOver)
+        {
+            return winner == Player.Player2 ? int.MaxValue - (MAX_DEPTH - depth) * 10 : int.MinValue + (MAX_DEPTH - depth) * 10;
         }
 
         for (int y = 0; y < board.Cells.Length; y++)
