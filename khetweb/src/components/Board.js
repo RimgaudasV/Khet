@@ -1,4 +1,3 @@
-// src/components/Board.js
 import React, { useState, useEffect } from "react";
 import Piece from "./Piece";
 import { rotatePiece, isHighlighted } from "../services/game-service";
@@ -6,17 +5,55 @@ import { getValidMoves, makeMove, moveByAgent } from "../services/api-service";
 import Laser from "./Laser";
 import "../styles/Board.css";
 
+const PLAYER_ONE_AGENT = true;
+const PLAYER_TWO_AGENT = true;
+const PLAYER_ONE_AGENT_DEPTH = 2;
+const PLAYER_TWO_AGENT_DEPTH = 2;
+
 export default function Board({game}) {
     const [moves, setMoves] = useState([]);
     const [selectedPiece, setSelectedPiece] = useState(null);
     const [laserPath, setLaserPath] = useState([]);
     const [validRotations, setValidRotations] = useState([]);
+    const [gameStarted, setGameStarted] = useState(false);
     const [gameOver, setGameOver] = useState(false);
     const [destroyedPiece, setDestroyedPiece] = useState(null);
     const [board, setBoard] = useState(null);
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const [explosion, setExplosion] = useState(null);
-    const pendingAgentMoveRef = React.useRef(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
+
+    const LASER_SPEED = bothAgents ? 0 : 100;
+    const LASER_AFTER_DELAY = bothAgents ? 0 : 500;
+    const EXPLOSION_DURATION = bothAgents ? 100 : 300;
+
+    const isCurrentPlayerAgent = (player) => {
+        return player === "Player1" ? PLAYER_ONE_AGENT : PLAYER_TWO_AGENT;
+    };
+
+    const getAgentDepth = (player) => {
+        return player === "Player1" ? PLAYER_ONE_AGENT_DEPTH : PLAYER_TWO_AGENT_DEPTH;
+    };
+
+    function handleStartGame() {
+        setGameStarted(true);
+        if (game && isCurrentPlayerAgent(game.currentPlayer)) {
+            setIsProcessing(true);
+            moveByAgent(
+                game.board, 
+                game.currentPlayer, 
+                getAgentDepth(game.currentPlayer)
+            ).then(result => {
+                setIsProcessing(false);
+                handleLaserResult(result);
+            }).catch(err => {
+                console.error("Agent move failed:", err);
+                setIsProcessing(false);
+            });
+        }
+    }
 
     useEffect(() => {
         if (!game) return;
@@ -25,7 +62,6 @@ export default function Board({game}) {
         setCurrentPlayer(game.currentPlayer);
     }, [game]);
 
-
     const CELL_SIZE = 50;
     const GAP = 2;
     const COLS = 10;
@@ -33,7 +69,6 @@ export default function Board({game}) {
 
     const boardWidth  = COLS * CELL_SIZE + (COLS - 1) * GAP;
     const boardHeight = ROWS * CELL_SIZE + (ROWS - 1) * GAP;
-
 
     if (!game || !board) return <div>Loading...</div>;
 
@@ -46,9 +81,6 @@ export default function Board({game}) {
     }
 
     function handleLaserResult(data) {
-        const LASER_SPEED = 100;
-        const LASER_AFTER_DELAY = 500;
-
         const laserDuration = (data.laser?.length ?? 0) * LASER_SPEED;
 
         setBoard(data.board);
@@ -60,7 +92,7 @@ export default function Board({game}) {
             if (data.destroyedPiece) {
                 setDestroyedPiece(null);
                 setExplosion(data.destroyedPiece);
-                setTimeout(() => setExplosion(null), 300);
+                setTimeout(() => setExplosion(null), EXPLOSION_DURATION);
             }
         }, laserDuration);
 
@@ -73,26 +105,29 @@ export default function Board({game}) {
                 return;
             }
 
-            setLaserPath([]);
-
-            if (data.currentPlayer === "Player2") {
-                pendingAgentMoveRef.current = moveByAgent(data.board, data.currentPlayer)
-                    .then(result => {
-                        return result;
-                    });
-            } else {
-                pendingAgentMoveRef.current = null;
+            if (!bothAgents) {
+                setLaserPath([]);
             }
 
-            if (pendingAgentMoveRef.current) {
-                const agentResult = await pendingAgentMoveRef.current;
-                pendingAgentMoveRef.current = null;
-                handleLaserResult(agentResult);
+            const shouldAgentMove = isCurrentPlayerAgent(data.currentPlayer);
+
+            if (shouldAgentMove) {
+                setIsProcessing(true);
+                try {
+                    const agentResult = await moveByAgent(
+                        data.board, 
+                        data.currentPlayer, 
+                        getAgentDepth(data.currentPlayer)
+                    );
+                    setIsProcessing(false);
+                    handleLaserResult(agentResult);
+                } catch (err) {
+                    console.error("Agent move failed:", err);
+                    setIsProcessing(false);
+                }
             }
         }, laserDuration + LASER_AFTER_DELAY);
     }
-
-
 
     const handlePieceClick = async (x, y) => {
         const cell = rows[y][x];
@@ -136,8 +171,6 @@ export default function Board({game}) {
         }
     };
 
-
-
     const handleMoveClick = async (toX, toY) => {
         if (!selectedPiece) return;
 
@@ -156,7 +189,6 @@ export default function Board({game}) {
         }
     };
 
-
     return (
         <div className="board-container">
             <div className="board-with-axes">
@@ -169,6 +201,20 @@ export default function Board({game}) {
                 </div>
 
                 <div className="board-and-top">
+                    {!gameStarted ? (
+                        <div className="start-game-container">
+                            <button className="start-game-button" onClick={handleStartGame}>
+                                Start Game
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="current-player-display">
+                            {(currentPlayer === "Player1" ? "Blue" : "Red")}'s turn{" "}
+                            {isCurrentPlayerAgent(currentPlayer) ? "(Agent)" : "(Human)"}
+                            {isProcessing && " - Thinking..."}
+                        </div>
+                    )}
+                    
                     <div className="x-axis">
                         {Array.from({ length: COLS }, (_, i) => (
                             <div key={i} className="x-label">
@@ -184,12 +230,13 @@ export default function Board({game}) {
                                     const piece = cell.piece;
                                     const isMoveTarget = isHighlighted(moves, x, y);
                                     const isOwnPiece = piece && piece.owner === currentPlayer;
+                                    const isHumanTurn = !isCurrentPlayerAgent(currentPlayer);
                                     const cellClass = `
                                         board-cell
                                         ${cell.isDisabled ? "disabled" : ""}
                                         ${cell.isDisabled ? cell.disabledFor.toLowerCase() : ""}
                                         ${isMoveTarget ? "highlight" : "default"}
-                                        ${(isMoveTarget || (isOwnPiece && !cell.isDisabled)) ? "clickable" : ""}
+                                        ${(isMoveTarget || (isOwnPiece && !cell.isDisabled && isHumanTurn)) ? "clickable" : ""}
                                     `;
 
                                     return (
@@ -197,6 +244,10 @@ export default function Board({game}) {
                                             key={`${x}-${y}`}
                                             className={cellClass}
                                             onClick={() => {
+                                                if (!gameStarted || isProcessing) return;
+                                                
+                                                if (!isHumanTurn) return;
+                                                
                                                 if (isHighlighted(moves, x, y)) {
                                                     handleMoveClick(x, y);
                                                 } else if (cell.piece && cell.piece.owner === currentPlayer) {
@@ -234,10 +285,11 @@ export default function Board({game}) {
                             gap={GAP}
                             width={boardWidth}
                             height={boardHeight}
+                            animated={!bothAgents}
                         />
                     </div>
 
-                    {selectedPiece && validRotations.length > 0 && (
+                    {selectedPiece && validRotations.length > 0 && !isCurrentPlayerAgent(currentPlayer) && gameStarted && !isProcessing && (
                         <div className="rotation-controls">
                             <span className="rotation-label">Rotate piece:</span>
                             <button onClick={() => handleRotate(-1)}>⟲ Counter-clockwise</button>

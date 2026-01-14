@@ -46,13 +46,14 @@ export async function rotate(player, board, currentPosition, newRotation) {
 }
 
 
-export async function moveByAgent(board, player) {
+export async function moveByAgent(board, player, depth) {
     const res = await fetch("https://localhost:7153/game/moveByAgent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             Board: board,
-            Player: player
+            Player: player,
+            Depth: depth
         })
     });
 
