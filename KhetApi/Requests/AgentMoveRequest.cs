@@ -7,4 +7,5 @@ public class AgentMoveRequest
 {
     public BoardModel Board { get; set; }
     public Player Player { get; set; }
+    public int Depth { get; set; }
 }

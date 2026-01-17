@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getLaserSegments } from "../services/game-service";
 import "../styles/Laser.css";
 
-export default function Laser({ path, cellSize, gap, width, height }) {
+export default function Laser({ path, cellSize, gap, width, height, animated = true }) {
     const [visibleCount, setVisibleCount] = useState(0);
 
     const segments =
@@ -12,6 +12,11 @@ export default function Laser({ path, cellSize, gap, width, height }) {
 
     useEffect(() => {
         if (segments.length === 0) return;
+
+        if (!animated) {
+            setVisibleCount(segments.length);
+            return;
+        }
 
         setVisibleCount(0);
 
@@ -26,7 +31,7 @@ export default function Laser({ path, cellSize, gap, width, height }) {
         }, 100);
 
         return () => clearInterval(interval);
-    }, [path, segments.length]);
+    }, [path, segments.length, animated]);
 
     if (segments.length === 0) return null;
 

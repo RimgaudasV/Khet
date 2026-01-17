@@ -14,14 +14,15 @@ public class GameService : IGameService
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
-    private int MAX_DEPTH = 2;
+    private int MAX_DEPTH;
 
     private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
-        { PieceType.Pharaoh, 10 },
-        { PieceType.Scarab, 2 },
-        { PieceType.Pyramid, 1 },
-        { PieceType.Anubis, 3 }
+        { PieceType.Pyramid, 5 },
+        { PieceType.Anubis, 7 },
+        { PieceType.Pharaoh, 100 }
     };
+
+    private int ALL_MOVES_COUNT = 0;
 
 
     public GameResponse StartGame()
@@ -171,15 +172,6 @@ public class GameService : IGameService
             {
                 var impact = CalculateImpact(laserDirection, piece);
 
-                if (impact.GameOver)
-                {
-                    return new ImpactResultModel(board, laserPath, true, GetNextPlayer(player), destroyedPiece);
-                }
-
-                if (impact.NewDirection is null)
-                {
-                    break;
-                }
                 if (impact.DestroyPiece)
                 {
                     destroyedPiece = new DestroyedPiece { 
@@ -188,10 +180,18 @@ public class GameService : IGameService
                         Position = currentPosition,
                         Rotation = piece.Rotation
                     };
+                    if (impact.GameOver)
+                    {
+                        return new ImpactResultModel(board, laserPath, true, GetNextPlayer(player), destroyedPiece);
+                    }
                     board.RemovePiece(currentPosition);
                     break;
                 }
 
+                if (impact.NewDirection is null)
+                {
+                    break;
+                }
                 laserDirection = impact.NewDirection.Value;
             }
         }
@@ -226,12 +226,6 @@ public class GameService : IGameService
             (LaserDirection.Right, Rotation.LeftDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Down, false, false),
             (LaserDirection.Right, Rotation.LeftUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Up, false, false),
 
-            // PYRAMID BACKSIDES
-            (LaserDirection.Up, Rotation.Up, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
-            (LaserDirection.Down, Rotation.Down, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
-            (LaserDirection.Left, Rotation.Left, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
-            (LaserDirection.Right, Rotation.Right, PieceType.Pyramid) => new ImpactResult(laserDir, true, false),
-
             // SCARAB REFLECTIONS
             // RightUp rotation
             (LaserDirection.Up, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Left, false, false),
@@ -242,7 +236,6 @@ public class GameService : IGameService
             // LeftUp rotation
             (LaserDirection.Up, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Right, false, false),
             (LaserDirection.Right, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Up, false, false),
-
             (LaserDirection.Left, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Down, false, false),
             (LaserDirection.Down, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Left, false, false),
 
@@ -251,14 +244,13 @@ public class GameService : IGameService
             (_, _, PieceType.Sphinx) => new ImpactResult(null, false, false),
 
             // ANUBIS 
-            (_, _, PieceType.Anubis) when
-                laserDir == LaserDirection.Right && (piece.Rotation == Rotation.Right || piece.Rotation == Rotation.Left) ||
-                laserDir == LaserDirection.Left && (piece.Rotation == Rotation.Left || piece.Rotation == Rotation.Right) ||
-                laserDir == LaserDirection.Up && (piece.Rotation == Rotation.Up || piece.Rotation == Rotation.Down) ||
-                laserDir == LaserDirection.Down && (piece.Rotation == Rotation.Down || piece.Rotation == Rotation.Up)
-                => new ImpactResult(null, true, false),
+            (LaserDirection.Down, Rotation.Up, PieceType.Anubis) => new ImpactResult(null, false, false),
+            (LaserDirection.Up, Rotation.Down, PieceType.Anubis) => new ImpactResult(null, false, false),
+            (LaserDirection.Left, Rotation.Right, PieceType.Anubis) => new ImpactResult(null, false, false),
+            (LaserDirection.Right, Rotation.Left, PieceType.Anubis) => new ImpactResult(null, false, false),
 
-            (_, _, PieceType.Anubis) => new ImpactResult(null, false, false),
+            //Not destoyed but no reflection either
+            (_, _, PieceType.Anubis) => new ImpactResult(null, true, false),
 
             // PHARAOH → game over
             (_, _, PieceType.Pharaoh) => new ImpactResult(null, true, true),
@@ -373,15 +365,18 @@ public class GameService : IGameService
             });
         }
 
-        return moves.OrderBy(_ => Random.Shared.Next());
+        return moves;
+
     }
 
 
     public GameResponse MoveByAgent(AgentMoveRequest request)
     {
-        var search = AlphaBetaSearch( request.Board, request.Player, MAX_DEPTH,int.MinValue,int.MaxValue);
+        MAX_DEPTH = request.Depth;
+        var search = AlphaBetaSearch(request.Board, request.Player, MAX_DEPTH, int.MinValue, int.MaxValue, false, request.Player);
 
         var chosen = search.BestMoves[Random.Shared.Next(search.BestMoves.Count)];
+        Console.WriteLine($"Chosen: {chosen.From} -> {chosen.To}, Rot: {chosen.Rotation}");
 
         ImpactResultModel result = chosen.Rotation != null
             ? Rotate(new RotationRequest
@@ -399,34 +394,26 @@ public class GameService : IGameService
                 NewPosition = chosen.To
             });
 
+        if (result.DestroyedPiece != null)
+            Console.WriteLine($"Agent ({request.Player}) destroyed {result.DestroyedPiece?.Owner} piece");
+
         return new GameResponse
         {
             Board = result.Board,
             CurrentPlayer = result.NextPlayer,
             GameEnded = result.GameOver,
             Laser = result.LaserPath,
-            DestroyedPiece = result.DestroyedPiece
+            DestroyedPiece = result.DestroyedPiece,
+            AllMovesCount = ALL_MOVES_COUNT
         };
     }
 
-
-
-
-    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha,int beta)
+    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha, int beta, bool gameOver, Player rootPlayer, Player? winner = null)
     {
-        if (IsGameOver(board))
-        {
-            int score = player == Player.Player2
-                ? int.MinValue + depth
-                : int.MaxValue - depth;
+        if (depth == 0 || gameOver)
+            return new SearchResult { Score = EvaluateBoard(board, gameOver, depth, winner, rootPlayer) };
 
-            return new SearchResult { Score = score };
-        }
-
-        if (depth == 0)
-            return new SearchResult { Score = EvaluateBoard(board) };
-
-        bool maximizing = player == Player.Player2;
+        bool maximizing = player == rootPlayer;
         int bestScore = maximizing ? int.MinValue : int.MaxValue;
         var bestMoves = new List<Move>();
 
@@ -436,12 +423,21 @@ public class GameService : IGameService
                 var from = new Position(x, y);
                 var piece = board.GetPieceAt(from);
                 if (piece == null || piece.Owner != player) continue;
-
-                foreach (var move in GenerateMoves(board, player, from, piece))
+                var allMoves = GenerateMoves(board, player, from, piece);
+                if (depth == MAX_DEPTH)
+                    ALL_MOVES_COUNT += allMoves.Count();
+                foreach (var move in allMoves)
                 {
                     var undoInformation = MakeMoveInPlace(board, player, move);
+                    bool moveResultsInGameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
 
-                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta).Score;
+                    Player? winnerPlayer = null;
+                    if (moveResultsInGameOver)
+                    {
+                        winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
+                    }
+
+                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver, rootPlayer, winnerPlayer).Score;
 
                     UndoMove(board, undoInformation);
 
@@ -475,7 +471,6 @@ public class GameService : IGameService
                 if (beta <= alpha) break;
             }
 
-
         return new SearchResult
         {
             Score = bestScore,
@@ -483,10 +478,17 @@ public class GameService : IGameService
         };
     }
 
-
-    private int EvaluateBoard(BoardModel board)
+    private int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer)
     {
         int score = 0;
+
+        if (gameOver)
+        {
+            if (winner == rootPlayer)
+                return int.MaxValue - (MAX_DEPTH - depth) * 10;
+            else
+                return int.MinValue + (MAX_DEPTH - depth) * 10;
+        }
 
         for (int y = 0; y < board.Cells.Length; y++)
         {
@@ -496,7 +498,7 @@ public class GameService : IGameService
                 if (piece != null && PieceValues.ContainsKey(piece.Type))
                 {
                     int value = PieceValues[piece.Type];
-                    if (piece.Owner == Player.Player2)
+                    if (piece.Owner == rootPlayer)
                         score += value;
                     else
                         score -= value;
@@ -504,74 +506,8 @@ public class GameService : IGameService
             }
         }
 
-        if (IsPharaohExposed(board, Player.Player2))
-            score -= 5000;
-
-        if (IsPharaohExposed(board, Player.Player1))
-            score += 5000;
-
         return score;
     }
-
-
-
-    private bool IsPharaohExposed(BoardModel board, Player player)
-    {
-        Position start = player == Player.Player1
-            ? new Position(9, 7)
-            : new Position(0, 0);
-
-        var sphinx = board.GetPieceAt(start);
-        if (sphinx == null) return false;
-
-        var dir = RotationMapper.ToLaserDirection(sphinx.Rotation);
-        var pos = start;
-
-        while (true)
-        {
-            pos = MoveOneStep(pos, dir);
-            if (!board.IsInsideBoard(pos))
-                return false;
-
-            var piece = board.GetPieceAt(pos);
-            if (piece == null)
-                continue;
-
-            if (piece.Type == PieceType.Pharaoh && piece.Owner == player)
-                return true;
-
-            var impact = CalculateImpact(dir, piece);
-
-            if (impact.GameOver || impact.NewDirection == null)
-                return false;
-
-            dir = impact.NewDirection.Value;
-        }
-    }
-
-
-    private bool IsGameOver(BoardModel board)
-    {
-        bool hasP1Pharaoh = false;
-        bool hasP2Pharaoh = false;
-
-        for (int y = 0; y < board.Cells.Length; y++)
-        {
-            for (int x = 0; x < board.Cells[y].Length; x++)
-            {
-                var piece = board.Cells[y][x].Piece;
-                if (piece?.Type == PieceType.Pharaoh)
-                {
-                    if (piece.Owner == Player.Player1) hasP1Pharaoh = true;
-                    else hasP2Pharaoh = true;
-                }
-            }
-        }
-
-        return !hasP1Pharaoh || !hasP2Pharaoh;
-    }
-
-
 
 }
 
