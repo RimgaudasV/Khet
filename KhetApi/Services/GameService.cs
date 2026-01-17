@@ -14,13 +14,15 @@ public class GameService : IGameService
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
-    private int MAX_DEPTH = 3;
+    private int MAX_DEPTH;
 
     private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
         { PieceType.Pyramid, 5 },
         { PieceType.Anubis, 7 },
         { PieceType.Pharaoh, 100 }
     };
+
+    private int ALL_MOVES_COUNT = 0;
 
 
     public GameResponse StartGame()
@@ -401,7 +403,8 @@ public class GameService : IGameService
             CurrentPlayer = result.NextPlayer,
             GameEnded = result.GameOver,
             Laser = result.LaserPath,
-            DestroyedPiece = result.DestroyedPiece
+            DestroyedPiece = result.DestroyedPiece,
+            AllMovesCount = ALL_MOVES_COUNT
         };
     }
 
@@ -420,19 +423,21 @@ public class GameService : IGameService
                 var from = new Position(x, y);
                 var piece = board.GetPieceAt(from);
                 if (piece == null || piece.Owner != player) continue;
-
-                foreach (var move in GenerateMoves(board, player, from, piece))
+                var allMoves = GenerateMoves(board, player, from, piece);
+                if (depth == MAX_DEPTH)
+                    ALL_MOVES_COUNT += allMoves.Count();
+                foreach (var move in allMoves)
                 {
                     var undoInformation = MakeMoveInPlace(board, player, move);
-                    gameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
+                    bool moveResultsInGameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
 
                     Player? winnerPlayer = null;
-                    if (gameOver)
+                    if (moveResultsInGameOver)
                     {
                         winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
                     }
 
-                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, gameOver, rootPlayer, winnerPlayer).Score;
+                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver, rootPlayer, winnerPlayer).Score;
 
                     UndoMove(board, undoInformation);
 
@@ -480,9 +485,9 @@ public class GameService : IGameService
         if (gameOver)
         {
             if (winner == rootPlayer)
-                return int.MaxValue - (MAX_DEPTH - depth) * 1000;
+                return int.MaxValue - (MAX_DEPTH - depth) * 10;
             else
-                return int.MinValue + (MAX_DEPTH - depth) * 1000;
+                return int.MinValue + (MAX_DEPTH - depth) * 10;
         }
 
         for (int y = 0; y < board.Cells.Length; y++)
@@ -501,49 +506,7 @@ public class GameService : IGameService
             }
         }
 
-        //if (IsPharaohExposed(board, rootPlayer))
-        //    score -= 5000;
-
-        //Player opponent = GetNextPlayer(rootPlayer);
-        //if (IsPharaohExposed(board, opponent))
-        //    score += 5000;
-
         return score;
-    }
-
-
-    private bool IsPharaohExposed(BoardModel board, Player player)
-    {
-        Position start = player == Player.Player1
-            ? new Position(9, 7)
-            : new Position(0, 0);
-
-        var sphinx = board.GetPieceAt(start);
-        if (sphinx == null) return false;
-
-        var dir = RotationMapper.ToLaserDirection(sphinx.Rotation);
-        var pos = start;
-
-        while (true)
-        {
-            pos = MoveOneStep(pos, dir);
-            if (!board.IsInsideBoard(pos))
-                return false;
-
-            var piece = board.GetPieceAt(pos);
-            if (piece == null)
-                continue;
-
-            if (piece.Type == PieceType.Pharaoh && piece.Owner == player)
-                return true;
-
-            var impact = CalculateImpact(dir, piece);
-
-            if (impact.GameOver || impact.NewDirection == null || impact?.DestroyPiece != null)
-                return false;
-
-            dir = impact.NewDirection.Value;
-        }
     }
 
 }

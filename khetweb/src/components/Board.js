@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Piece from "./Piece";
+import AgentStats from "./Stats";
 import { rotatePiece, isHighlighted } from "../services/game-service";
 import { getValidMoves, makeMove, moveByAgent } from "../services/api-service";
 import Laser from "./Laser";
@@ -7,8 +8,8 @@ import "../styles/Board.css";
 
 const PLAYER_ONE_AGENT = true;
 const PLAYER_TWO_AGENT = true;
-const PLAYER_ONE_AGENT_DEPTH = 2;
-const PLAYER_TWO_AGENT_DEPTH = 2;
+const PLAYER_ONE_AGENT_DEPTH = 4;
+const PLAYER_TWO_AGENT_DEPTH = 4;
 
 export default function Board({game}) {
     const [moves, setMoves] = useState([]);
@@ -22,6 +23,13 @@ export default function Board({game}) {
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const [explosion, setExplosion] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    
+    const [stats, setStats] = useState({
+        player1Times: [],
+        player2Times: [],
+        player1Moves: [],
+        player2Moves: []
+    });
 
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
 
@@ -41,11 +49,15 @@ export default function Board({game}) {
         setGameStarted(true);
         if (game && isCurrentPlayerAgent(game.currentPlayer)) {
             setIsProcessing(true);
+            const startTime = performance.now();
             moveByAgent(
                 game.board, 
                 game.currentPlayer, 
                 getAgentDepth(game.currentPlayer)
             ).then(result => {
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                updateStats(game.currentPlayer, duration, result.allMovesCount);
                 setIsProcessing(false);
                 handleLaserResult(result);
             }).catch(err => {
@@ -54,6 +66,20 @@ export default function Board({game}) {
             });
         }
     }
+
+    const updateStats = (player, duration, movesCount) => {
+        setStats(prevStats => {
+            const newStats = { ...prevStats };
+            if (player === "Player1") {
+                newStats.player1Times = [...prevStats.player1Times, duration];
+                newStats.player1Moves = [...prevStats.player1Moves, movesCount || 0];
+            } else {
+                newStats.player2Times = [...prevStats.player2Times, duration];
+                newStats.player2Moves = [...prevStats.player2Moves, movesCount || 0];
+            }
+            return newStats;
+        });
+    };
 
     useEffect(() => {
         if (!game) return;
@@ -113,12 +139,16 @@ export default function Board({game}) {
 
             if (shouldAgentMove) {
                 setIsProcessing(true);
+                const startTime = performance.now();
                 try {
                     const agentResult = await moveByAgent(
                         data.board, 
                         data.currentPlayer, 
                         getAgentDepth(data.currentPlayer)
                     );
+                    const endTime = performance.now();
+                    const duration = endTime - startTime;
+                    updateStats(data.currentPlayer, duration, agentResult.allMovesCount);
                     setIsProcessing(false);
                     handleLaserResult(agentResult);
                 } catch (err) {
@@ -295,6 +325,10 @@ export default function Board({game}) {
                             <button onClick={() => handleRotate(-1)}>⟲ Counter-clockwise</button>
                             <button onClick={() => handleRotate(1)}>⟳ Clockwise</button>
                         </div>
+                    )}
+                    
+                    {gameStarted && (stats.player1Times.length > 0 || stats.player2Times.length > 0) && (
+                        <AgentStats stats={stats} />
                     )}
                 </div>
             </div>

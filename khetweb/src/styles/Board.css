@@ -157,3 +157,55 @@
         opacity: 0;
     }
 }
+
+.stats-panel {
+    margin-top: 20px;
+    padding: 16px;
+    background-color: #f9f9f9;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+}
+
+.stats-panel h3 {
+    margin: 0 0 12px 0;
+    color: #333;
+    font-size: 18px;
+    text-align: center;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.stat-section {
+    padding: 12px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.stat-section.overall {
+    grid-column: 1 / -1;
+    background-color: #f0f0f0;
+}
+
+.stat-section h4 {
+    margin: 0 0 8px 0;
+    color: #555;
+    font-size: 16px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 4px;
+}
+
+.stat-section p {
+    margin: 4px 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.stat-section p strong {
+    color: #333;
+    font-weight: 600;
+}
