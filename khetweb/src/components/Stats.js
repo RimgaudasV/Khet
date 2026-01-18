@@ -4,7 +4,7 @@ import '../styles/AgentStats.css';
 export default function AgentStats({ stats }) {
     if (!stats) return null;
     
-    const { player1Times, player2Times, player1Moves, player2Moves } = stats;
+    const { player1Times, player2Times, player1Moves, player2Moves, maxMovesCount } = stats;
     
     const calculateAverage = (arr) => {
         if (!arr || arr.length === 0) return 0;
@@ -50,6 +50,7 @@ export default function AgentStats({ stats }) {
                 <h4>Overall Statistics</h4>
                 <div>Avg Time per Move: <strong>{formatTime(avgOverallTime)}</strong></div>
                 <div>Avg Moves Evaluated: <strong>{avgOverallMoves.toFixed(1)}</strong></div>
+                <div>Max Moves Found In Any Node: <strong>{maxMovesCount || 0}</strong></div>
                 <div className="agent-stats-moves">
                     Total Agent Moves: {allTimes.length}
                 </div>

@@ -23,6 +23,7 @@ public class GameService : IGameService
     };
 
     private int ALL_MOVES_COUNT = 0;
+    private int MAX_MOVES_COUNT = 0;
 
 
     public GameResponse StartGame()
@@ -404,7 +405,8 @@ public class GameService : IGameService
             GameEnded = result.GameOver,
             Laser = result.LaserPath,
             DestroyedPiece = result.DestroyedPiece,
-            AllMovesCount = ALL_MOVES_COUNT
+            AllMovesCount = ALL_MOVES_COUNT,
+            MaxMovesCount = MAX_MOVES_COUNT
         };
     }
 
@@ -417,15 +419,27 @@ public class GameService : IGameService
         int bestScore = maximizing ? int.MinValue : int.MaxValue;
         var bestMoves = new List<Move>();
 
+        int totalMoves = 0;
+
+        bool shouldPrune = false;
+
         for (int y = 0; y < board.Cells.Length; y++)
+        {
             for (int x = 0; x < board.Cells[y].Length; x++)
             {
                 var from = new Position(x, y);
                 var piece = board.GetPieceAt(from);
-                if (piece == null || piece.Owner != player) continue;
+                if (piece == null || piece.Owner != player)
+                    continue;
+
                 var allMoves = GenerateMoves(board, player, from, piece);
+
+                totalMoves += allMoves.Count();
+
                 if (depth == MAX_DEPTH)
                     ALL_MOVES_COUNT += allMoves.Count();
+
+
                 foreach (var move in allMoves)
                 {
                     var undoInformation = MakeMoveInPlace(board, player, move);
@@ -464,12 +478,20 @@ public class GameService : IGameService
                         beta = Math.Min(beta, score);
                     }
 
-                    if (beta <= alpha)
-                        break;
+                    //if (beta <= alpha)
+                    //{
+                    //    shouldPrune = true;
+                    //    break;
+                    //}
                 }
 
-                if (beta <= alpha) break;
+                if (shouldPrune) break;
             }
+
+            if (shouldPrune) break;
+        }
+
+        MAX_MOVES_COUNT = Math.Max(MAX_MOVES_COUNT, totalMoves);
 
         return new SearchResult
         {
@@ -506,7 +528,71 @@ public class GameService : IGameService
             }
         }
 
+        score += EvaluateThreats(board, rootPlayer);
+
         return score;
+    }
+
+    private int EvaluateThreats(BoardModel board, Player rootPlayer)
+    {
+        int threatScore = 0;
+
+        var myLaserResult = SimulateLaser(board, rootPlayer);
+        var opponentLaserResult = SimulateLaser(board, GetNextPlayer(rootPlayer));
+
+        if (opponentLaserResult != null)
+        {
+            int threat = PieceValues.GetValueOrDefault(opponentLaserResult.Type, 0);
+            if (opponentLaserResult.Owner == rootPlayer)
+                threatScore -= threat;
+        }
+
+        if (myLaserResult != null)
+        {
+            int threat = PieceValues.GetValueOrDefault(myLaserResult.Type, 0);
+            if (myLaserResult.Owner != rootPlayer)
+                threatScore += threat;
+        }
+
+        return threatScore;
+    }
+
+    private PieceModel? SimulateLaser(BoardModel board, Player player)
+    {
+        var currentPosition = player == Player.Player1
+            ? new Position(9, 7)
+            : new Position(0, 0);
+
+        var laserDirection = RotationMapper.ToLaserDirection(board.GetPieceAt(currentPosition).Rotation);
+
+        while (true)
+        {
+            currentPosition = MoveOneStep(currentPosition, laserDirection);
+
+            if (!board.IsInsideBoard(currentPosition))
+                break;
+
+            var cell = board.Cells[currentPosition.Y][currentPosition.X];
+            var piece = cell.Piece;
+
+            if (cell.IsDisabled && piece == null)
+                continue;
+
+            if (piece != null)
+            {
+                var impact = CalculateImpact(laserDirection, piece);
+
+                if (impact.DestroyPiece)
+                    return piece; // Return the piece that would be destroyed
+
+                if (impact.NewDirection is null)
+                    break;
+
+                laserDirection = impact.NewDirection.Value;
+            }
+        }
+
+        return null;
     }
 
 }

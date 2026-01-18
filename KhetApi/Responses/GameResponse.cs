@@ -11,4 +11,5 @@ public class GameResponse
     public List<Position> Laser { get; internal set; }
     public DestroyedPiece? DestroyedPiece { get; set; }
     public int? AllMovesCount { get; set; }
-    }
+    public int? MaxMovesCount { get; set; }
+}
