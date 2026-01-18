@@ -461,6 +461,7 @@ public class GameService : IGameService
                         {
                             bestScore = score;
                             bestMoves.Clear();
+                            bestMoves.Add(move);
                         }
                         if (score == bestScore)
                             bestMoves.Add(move);
@@ -472,17 +473,18 @@ public class GameService : IGameService
                         {
                             bestScore = score;
                             bestMoves.Clear();
+                            bestMoves.Add(move);
                         }
                         if (score == bestScore)
                             bestMoves.Add(move);
                         beta = Math.Min(beta, score);
                     }
 
-                    //if (beta <= alpha)
-                    //{
-                    //    shouldPrune = true;
-                    //    break;
-                    //}
+                    if (beta <= alpha)
+                    {
+                        shouldPrune = true;
+                        break;
+                    }
                 }
 
                 if (shouldPrune) break;
@@ -583,7 +585,7 @@ public class GameService : IGameService
                 var impact = CalculateImpact(laserDirection, piece);
 
                 if (impact.DestroyPiece)
-                    return piece; // Return the piece that would be destroyed
+                    return piece;
 
                 if (impact.NewDirection is null)
                     break;
