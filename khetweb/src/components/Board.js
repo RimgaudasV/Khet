@@ -8,8 +8,8 @@ import "../styles/Board.css";
 
 const PLAYER_ONE_AGENT = true;
 const PLAYER_TWO_AGENT = true;
-const PLAYER_ONE_AGENT_DEPTH = 4;
-const PLAYER_TWO_AGENT_DEPTH = 4;
+const PLAYER_ONE_AGENT_DEPTH = 2;
+const PLAYER_TWO_AGENT_DEPTH = 2;
 
 export default function Board({game}) {
     const [moves, setMoves] = useState([]);
@@ -28,7 +28,8 @@ export default function Board({game}) {
         player1Times: [],
         player2Times: [],
         player1Moves: [],
-        player2Moves: []
+        player2Moves: [],
+        maxMovesCount: 0
     });
 
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
@@ -57,7 +58,7 @@ export default function Board({game}) {
             ).then(result => {
                 const endTime = performance.now();
                 const duration = endTime - startTime;
-                updateStats(game.currentPlayer, duration, result.allMovesCount);
+                updateStats(game.currentPlayer, duration, result.allMovesCount, result.maxMovesCount);
                 setIsProcessing(false);
                 handleLaserResult(result);
             }).catch(err => {
@@ -67,7 +68,7 @@ export default function Board({game}) {
         }
     }
 
-    const updateStats = (player, duration, movesCount) => {
+    const updateStats = (player, duration, movesCount, maxMoves) => {
         setStats(prevStats => {
             const newStats = { ...prevStats };
             if (player === "Player1") {
@@ -76,6 +77,10 @@ export default function Board({game}) {
             } else {
                 newStats.player2Times = [...prevStats.player2Times, duration];
                 newStats.player2Moves = [...prevStats.player2Moves, movesCount || 0];
+            }
+
+            if (maxMoves && maxMoves > prevStats.maxMovesCount) {
+                newStats.maxMovesCount = maxMoves;
             }
             return newStats;
         });
@@ -148,7 +153,7 @@ export default function Board({game}) {
                     );
                     const endTime = performance.now();
                     const duration = endTime - startTime;
-                    updateStats(data.currentPlayer, duration, agentResult.allMovesCount);
+                    updateStats(data.currentPlayer, duration, agentResult.allMovesCount, agentResult.maxMovesCount);
                     setIsProcessing(false);
                     handleLaserResult(agentResult);
                 } catch (err) {
