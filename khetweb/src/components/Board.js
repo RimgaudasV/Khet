@@ -10,6 +10,7 @@ const PLAYER_ONE_AGENT = true;
 const PLAYER_TWO_AGENT = true;
 const PLAYER_ONE_AGENT_DEPTH = 2;
 const PLAYER_TWO_AGENT_DEPTH = 2;
+const TOTAL_GAMES = 20;
 
 export default function Board({game}) {
     const [moves, setMoves] = useState([]);
@@ -23,6 +24,9 @@ export default function Board({game}) {
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const [explosion, setExplosion] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [gamesCompleted, setGamesCompleted] = useState(0);
+    const [allGamesFinished, setAllGamesFinished] = useState(false);
+    const [allGamesData, setAllGamesData] = useState([]);
     
     const [stats, setStats] = useState({
         player1Times: [],
@@ -86,6 +90,100 @@ export default function Board({game}) {
         });
     };
 
+    const logGameStats = () => {
+        const allMoves = [...stats.player1Moves, ...stats.player2Moves];
+        const avgOverallMoves = allMoves.length > 0 
+            ? allMoves.reduce((sum, val) => sum + val, 0) / allMoves.length 
+            : 0;
+        const turnsTaken = stats.player1Times.length + stats.player2Times.length;
+        
+        // Store game data instead of logging
+        const gameData = {
+            gameNumber: gamesCompleted + 1,
+            avgMovesEvaluated: parseFloat(avgOverallMoves.toFixed(1)),
+            turnsTaken: turnsTaken
+        };
+        
+        setAllGamesData(prev => [...prev, gameData]);
+    };
+
+    const downloadGameStats = () => {
+        if (allGamesData.length === 0) return;
+        
+        // Calculate overall averages
+        const totalAvgMoves = allGamesData.reduce((sum, game) => sum + game.avgMovesEvaluated, 0) / allGamesData.length;
+        const totalAvgTurns = allGamesData.reduce((sum, game) => sum + game.turnsTaken, 0) / allGamesData.length;
+        
+        // Build file content
+        let fileContent = '';
+        allGamesData.forEach(game => {
+            fileContent += `Game ${game.gameNumber}: Avg moves evaluated: ${game.avgMovesEvaluated}, Turns taken in game: ${game.turnsTaken}\n`;
+        });
+        
+        // Add overall average at the end
+        fileContent += `\nAverage of all games: Avg moves evaluated: ${totalAvgMoves.toFixed(1)}, Turns taken in game: ${totalAvgTurns.toFixed(1)}`;
+        
+        // Download file
+        const blob = new Blob([fileContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'all_games_stats.txt';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const resetGame = () => {
+        setGameOver(false);
+        setStats({
+            player1Times: [],
+            player2Times: [],
+            player1Moves: [],
+            player2Moves: [],
+            maxMovesCount: 0
+        });
+        setMoves([]);
+        setSelectedPiece(null);
+        setLaserPath([]);
+        setValidRotations([]);
+        setDestroyedPiece(null);
+        setExplosion(null);
+        setIsProcessing(false);
+        
+        // Reset the board to initial state
+        if (game) {
+            setBoard(game.board);
+            setCurrentPlayer(game.currentPlayer);
+        }
+    };
+
+    useEffect(() => {
+        if (gameOver && (stats.player1Times.length > 0 || stats.player2Times.length > 0)) {
+            logGameStats();
+            
+            const newGamesCompleted = gamesCompleted + 1;
+            setGamesCompleted(newGamesCompleted);
+            
+            if (newGamesCompleted < TOTAL_GAMES) {
+                setTimeout(() => {
+                    resetGame();
+                    setTimeout(() => {
+                        handleStartGame();
+                    }, 100);
+                }, 500);
+            } else {
+                setAllGamesFinished(true);
+                console.log(`All ${TOTAL_GAMES} games completed!`);
+                setTimeout(() => {
+                    downloadGameStats();
+                    alert(`All ${TOTAL_GAMES} games completed! Stats file downloaded.`);
+                }, 1000);
+            }
+        }
+    }, [gameOver]);
+
     useEffect(() => {
         if (!game) return;
 
@@ -131,7 +229,9 @@ export default function Board({game}) {
             if (data.gameEnded) {
                 setTimeout(() => {
                     setGameOver(true);
-                    alert("Game over!");
+                    if (gamesCompleted + 1 >= TOTAL_GAMES) {
+                        alert("Game over!");
+                    }
                 }, 500);
                 return;
             }
@@ -244,9 +344,15 @@ export default function Board({game}) {
                         </div>
                     ) : (
                         <div className="current-player-display">
-                            {(currentPlayer === "Player1" ? "Blue" : "Red")}'s turn{" "}
-                            {isCurrentPlayerAgent(currentPlayer) ? "(Agent)" : "(Human)"}
-                            {isProcessing && " - Thinking..."}
+                            {allGamesFinished ? (
+                                `All ${TOTAL_GAMES} games completed!`
+                            ) : (
+                                <>
+                                    Game {gamesCompleted + 1}/{TOTAL_GAMES} - {(currentPlayer === "Player1" ? "Blue" : "Red")}'s turn{" "}
+                                    {isCurrentPlayerAgent(currentPlayer) ? "(Agent)" : "(Human)"}
+                                    {isProcessing && " - Thinking..."}
+                                </>
+                            )}
                         </div>
                     )}
                     
