@@ -410,23 +410,23 @@ public class GameService : IGameService
         MAX_DEPTH = request.Depth;
         var search = AlphaBetaSearch(request.Board, request.Player, MAX_DEPTH, int.MinValue, int.MaxValue, false, request.Player);
 
-        var chosen = search.BestMoves[Random.Shared.Next(search.BestMoves.Count)];
-        Console.WriteLine($"Chosen: {chosen.From} -> {chosen.To}, Rot: {chosen.Rotation}");
+        var bestMove = search.BestMove;
+        Console.WriteLine($"Chosen: {bestMove.From} -> {bestMove.To}, Rot: {bestMove.Rotation}");
 
-        ImpactResultModel result = chosen.Rotation != null
+        ImpactResultModel result = bestMove.Rotation != null
             ? Rotate(new RotationRequest
             {
                 Board = request.Board,
                 Player = request.Player,
-                CurrentPosition = chosen.From,
-                NewRotation = chosen.Rotation.Value
+                CurrentPosition = bestMove.From,
+                NewRotation = bestMove.Rotation.Value
             })
             : MakeMove(new MoveRequest
             {
                 Board = request.Board,
                 Player = request.Player,
-                CurrentPosition = chosen.From,
-                NewPosition = chosen.To
+                CurrentPosition = bestMove.From,
+                NewPosition = bestMove.To
             });
 
         if (result.DestroyedPiece != null)
@@ -454,22 +454,22 @@ public class GameService : IGameService
 
         bool maximizing = player == rootPlayer;
         int bestScore = maximizing ? int.MinValue : int.MaxValue;
-        var bestMoves = new List<Move>();
+        Move bestMove = new Move();
 
         bool shouldPrune = false;
 
         var allMoves = GenerateAllMoves(board, player);
 
         //Shuffle moves to increase variaty of moves
-        //Random rng = new Random();
-        //int n = allMoves.Count;
-        //for (int i = n - 1; i > 0; i--)
-        //{
-        //    int j = rng.Next(i + 1);
-        //    var temp = allMoves[i];
-        //    allMoves[i] = allMoves[j];
-        //    allMoves[j] = temp;
-        //}
+        Random rng = new Random();
+        int n = allMoves.Count;
+        for (int i = n - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            var temp = allMoves[i];
+            allMoves[i] = allMoves[j];
+            allMoves[j] = temp;
+        }
 
         int totalMoves = allMoves.Count;
 
@@ -497,10 +497,10 @@ public class GameService : IGameService
                 if (score > bestScore)
                 {
                     bestScore = score;
-                    bestMoves.Clear();
+                    bestMove = move;
                 }
                 if (score == bestScore)
-                    bestMoves.Add(move);
+                    
 
                 alpha = Math.Max(alpha, score);
             }
@@ -509,10 +509,9 @@ public class GameService : IGameService
                 if (score < bestScore)
                 {
                     bestScore = score;
-                    bestMoves.Clear();
+                    bestMove = move;
                 }
-                if (score == bestScore)
-                    bestMoves.Add(move);
+                    
 
                 beta = Math.Min(beta, score);
             }
@@ -527,7 +526,7 @@ public class GameService : IGameService
         return new SearchResult
         {
             Score = bestScore,
-            BestMoves = bestMoves
+            BestMove = bestMove
         };
     }
 
@@ -746,7 +745,7 @@ public class GameService : IGameService
                 if (!board.IsInsideBoard(pos)) break;
 
                 var piece = board.GetPieceAt(pos);
-                if (piece == null || (piece.Owner == rootPlayer && piece.Type == PieceType.Scarab)) 
+                if (piece == null) 
                     break;
 
                 if(piece.Owner == rootPlayer)
@@ -763,8 +762,8 @@ public class GameService : IGameService
                     if (piece.Type == PieceType.Scarab)
                     {
                         score -= 2;
-                        break;
                     }
+                    break;
                 }
 
                 else
@@ -788,12 +787,13 @@ public class GameService : IGameService
 
 
 
+
     private int AnubisDefendPharoah(Rotation sideOfPharoah, Rotation rotation)
-        => sideOfPharoah == rotation ? 4 : 2;
+        => sideOfPharoah == rotation ? 2 : 1;
 
     private int PyramidDefendPharoah(Rotation sideOfPharoah, Rotation rotation)
     {
-        var PyramidScore = 2;
+        var PyramidScore = 1;
         return (sideOfPharoah, rotation) switch
         {
             (Rotation.Up, Rotation.LeftUp) => PyramidScore,

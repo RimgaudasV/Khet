@@ -24,7 +24,7 @@ public sealed class UndoState
 public class SearchResult
 {
     public int Score;
-    public List<Move> BestMoves = new();
+    public Move BestMove;
 }
 
 
