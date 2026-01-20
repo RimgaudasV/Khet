@@ -12,4 +12,5 @@ public class GameResponse
     public DestroyedPiece? DestroyedPiece { get; set; }
     public int? AllMovesCount { get; set; }
     public int? MaxMovesCount { get; set; }
+    public Player? Winner { get; set; }
 }

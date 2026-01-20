@@ -6,6 +6,7 @@ using KhetApi.Models.Move;
 using KhetApi.Models.Piece;
 using KhetApi.Requests;
 using KhetApi.Responses;
+using System.Diagnostics;
 
 namespace KhetApi.Services;
 
@@ -17,8 +18,8 @@ public class GameService : IGameService
     private int MAX_DEPTH;
 
     private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
-        { PieceType.Pyramid, 5 },
-        { PieceType.Anubis, 7 },
+        { PieceType.Pyramid, 10 },
+        { PieceType.Anubis, 15 },
         { PieceType.Pharaoh, 100 }
     };
 
@@ -439,7 +440,10 @@ public class GameService : IGameService
             Laser = result.LaserPath,
             DestroyedPiece = result.DestroyedPiece,
             AllMovesCount = ALL_MOVES_COUNT,
-            MaxMovesCount = MAX_MOVES_COUNT
+            MaxMovesCount = MAX_MOVES_COUNT,
+            Winner = result.GameOver && result.DestroyedPiece != null
+                ? GetNextPlayer(result.DestroyedPiece.Owner)
+                : null
         };
     }
 
@@ -457,15 +461,15 @@ public class GameService : IGameService
         var allMoves = GenerateAllMoves(board, player);
 
         //Shuffle moves to increase variaty of moves
-        Random rng = new Random();
-        int n = allMoves.Count;
-        for (int i = n - 1; i > 0; i--)
-        {
-            int j = rng.Next(i + 1);
-            var temp = allMoves[i];
-            allMoves[i] = allMoves[j];
-            allMoves[j] = temp;
-        }
+        //Random rng = new Random();
+        //int n = allMoves.Count;
+        //for (int i = n - 1; i > 0; i--)
+        //{
+        //    int j = rng.Next(i + 1);
+        //    var temp = allMoves[i];
+        //    allMoves[i] = allMoves[j];
+        //    allMoves[j] = temp;
+        //}
 
         int totalMoves = allMoves.Count;
 
@@ -529,97 +533,279 @@ public class GameService : IGameService
 
     private int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer)
     {
+        if (gameOver)
+            return EvaluateTerminalState(depth, winner, rootPlayer);
+
+        var boardInfo = GetBoardInfo(board);
+        var (rootCount, oppCount, total) = CountPieces(boardInfo.Pieces, rootPlayer);
+
+        var phase = DetermineGamePhase(total, rootCount, oppCount);
+
         int score = 0;
 
-        if (gameOver)
+        score += EvaluateMaterial(boardInfo.Pieces, rootPlayer);
+        score += EvaluatePhaseSpecific(board, boardInfo.Pieces, rootPlayer, phase);
+        score += EvaluatePharaohThreats(boardInfo.PharaohPosition, board, rootPlayer);
+
+        return score;
+    }
+
+
+
+    private int EvaluatePhaseSpecific(BoardModel board,List<(PieceModel piece, Position pos)> pieces, Player rootPlayer, GamePhase phase)
+    {
+        int score = 0;
+
+        foreach (var (piece, pos) in pieces)
         {
-            if (winner == rootPlayer)
-                return int.MaxValue - (MAX_DEPTH - depth) * 10;
-            else
-                return int.MinValue + (MAX_DEPTH - depth) * 10;
+            if (piece.Type != PieceType.Pharaoh)
+                continue;
+
+            int defence = CheckPharaohDefence(pos, board, piece.Owner);
+
+            int phaseMultiplier = phase switch
+            {
+                GamePhase.Start => 2,
+                GamePhase.Middlegame => 1,
+                GamePhase.NearEnd => 1,
+                GamePhase.EndGame => -1,
+                _ => 0
+            };
+
+            int value = defence * phaseMultiplier;
+
+            score += piece.Owner == rootPlayer ? value : -value;
         }
+
+        return score;
+    }
+
+
+
+    private int EvaluateTerminalState(int depth, Player? winner, Player rootPlayer)
+    {
+        int bonus = (MAX_DEPTH - depth) * 10;
+
+        if (winner == rootPlayer)
+            return int.MaxValue - bonus;
+        else
+            return int.MinValue + bonus;
+    }
+
+
+
+    private GamePhase DetermineGamePhase(int totalPieces, int rootPieces, int opponentPieces)
+    {
+
+        if (totalPieces > 22 && (rootPieces >= 10 || opponentPieces >= 10))
+            return GamePhase.Start;
+
+        else if (totalPieces >= 18 && (rootPieces >= 8 || opponentPieces >= 8))
+            return GamePhase.Middlegame;
+
+        else if (totalPieces >= 12 && (rootPieces > 5 || opponentPieces > 5))
+            return GamePhase.NearEnd;
+        else 
+            return GamePhase.EndGame;
+
+    }
+
+
+    private (int rootCount, int opponentCount, int total)
+    CountPieces(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    {
+        int root = 0;
+        int opp = 0;
+
+        foreach (var (piece, _) in pieces)
+        {
+            if (piece.Owner == rootPlayer) root++;
+            else opp++;
+        }
+
+        return (root, opp, root + opp);
+    }
+
+    private BoardInfo GetBoardInfo(BoardModel board)
+    {
+        var pieces = new List<(PieceModel, Position)>();
+        Position? pharaohPosition = null;
 
         for (int y = 0; y < board.Cells.Length; y++)
         {
             for (int x = 0; x < board.Cells[y].Length; x++)
             {
                 var piece = board.Cells[y][x].Piece;
-                if (piece != null && PieceValues.ContainsKey(piece.Type))
-                {
-                    int value = PieceValues[piece.Type];
-                    if (piece.Owner == rootPlayer)
-                        score += value;
-                    else
-                        score -= value;
-                }
+                if (piece == null) continue;
+
+                var pos = new Position(x, y);
+                pieces.Add((piece, pos));
+
+                if (piece.Type == PieceType.Pharaoh)
+                    pharaohPosition = pos;
             }
         }
 
-        score += EvaluateThreats(board, rootPlayer);
+        if (pharaohPosition == null)
+            throw new InvalidOperationException("Pharaoh not found on board.");
+
+        return new BoardInfo
+        {
+            Pieces = pieces,
+            PharaohPosition = pharaohPosition
+        };
+    }
+
+
+    private int EvaluateMaterial(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    {
+        int score = 0;
+
+        foreach (var (piece, _) in pieces)
+        {
+            if (!PieceValues.ContainsKey(piece.Type)) continue;
+
+            int value = PieceValues[piece.Type];
+            score += piece.Owner == rootPlayer ? value : -value;
+        }
 
         return score;
     }
 
-    private int EvaluateThreats(BoardModel board, Player rootPlayer)
+
+
+    private int CheckPharaohDefence(Position pharaohPos, BoardModel board, Player owner)
     {
-        int threatScore = 0;
+        int score = 0;
 
-        var myLaserResult = SimulateLaser(board, rootPlayer);
-        var opponentLaserResult = SimulateLaser(board, GetNextPlayer(rootPlayer));
-
-        if (opponentLaserResult != null)
+        for (int y = 0; y < board.Cells.Length; y++)
         {
-            int threat = PieceValues.GetValueOrDefault(opponentLaserResult.Type, 0);
-            if (opponentLaserResult.Owner == rootPlayer)
-                threatScore -= threat;
-        }
-
-        if (myLaserResult != null)
-        {
-            int threat = PieceValues.GetValueOrDefault(myLaserResult.Type, 0);
-            if (myLaserResult.Owner != rootPlayer)
-                threatScore += threat;
-        }
-
-        return threatScore;
-    }
-
-    private PieceModel? SimulateLaser(BoardModel board, Player player)
-    {
-        var currentPosition = player == Player.Player1
-            ? new Position(9, 7)
-            : new Position(0, 0);
-
-        var laserDirection = RotationMapper.ToLaserDirection(board.GetPieceAt(currentPosition).Rotation);
-
-        while (true)
-        {
-            currentPosition = MoveOneStep(currentPosition, laserDirection);
-
-            if (!board.IsInsideBoard(currentPosition))
-                break;
-
-            var cell = board.Cells[currentPosition.Y][currentPosition.X];
-            var piece = cell.Piece;
-
-            if (cell.IsDisabled && piece == null)
-                continue;
-
-            if (piece != null)
+            for (int x = 0; x < board.Cells[y].Length; x++)
             {
-                var impact = CalculateImpact(laserDirection, piece);
+                var piece = board.Cells[y][x].Piece;
+                if (piece == null || piece.Owner != owner)
+                    continue;
 
-                if (impact.DestroyPiece)
-                    return piece;
+                var piecePos = new Position(x, y);
+                var side = GetSideOfPharaoh(pharaohPos, piecePos);
 
-                if (impact.NewDirection is null)
-                    break;
+                if (side == null)
+                    continue;
 
-                laserDirection = impact.NewDirection.Value;
+                score += piece.Type switch
+                {
+                    PieceType.Anubis => AnubisDefendPharoah(side.Value, piece.Rotation),
+                    PieceType.Pyramid => PyramidDefendPharoah(side.Value, piece.Rotation),
+                    _ => 0
+                };
             }
         }
 
+        return score;
+    }
+
+
+
+    private Rotation? GetSideOfPharaoh(Position pharaohPos, Position piecePos)
+    {
+        int dx = piecePos.X - pharaohPos.X;
+        int dy = piecePos.Y - pharaohPos.Y;
+
+        if (dx == 0)
+        {
+            if (dy < 0) return Rotation.Up;
+            if (dy > 0) return Rotation.Down;
+        }
+
+        if (dy == 0)
+        {
+            if (dx < 0) return Rotation.Left;
+            if (dx > 0) return Rotation.Right;
+        }
+
         return null;
+    }
+
+    private int EvaluatePharaohThreats(Position pharaohPos, BoardModel board, Player rootPlayer)
+    {
+        int score = 0;
+
+        var directions = new (int dx, int dy)[]
+        {
+            (0,-1),(0,1),(-1,0),(1,0)
+        };
+
+        foreach (var (dx, dy) in directions)
+        {
+
+            int step = 1;
+            
+            while(true)
+            {
+                var pos = new Position(pharaohPos.X + dx * step, pharaohPos.Y + dy * step);
+                if (!board.IsInsideBoard(pos)) break;
+
+                var piece = board.GetPieceAt(pos);
+                if (piece == null || (piece.Owner == rootPlayer && piece.Type == PieceType.Scarab)) 
+                    break;
+
+                if(piece.Owner == rootPlayer)
+                {
+                    if(piece.Type == PieceType.Pyramid)
+                    {
+                        var side = GetSideOfPharaoh(pharaohPos, pos);
+                        if (side != null && PyramidDefendPharoah(side.Value, piece.Rotation) == 0)
+                        {
+                            score -= 2;
+                        }
+                    }
+
+                    if (piece.Type == PieceType.Scarab)
+                    {
+                        score -= 2;
+                        break;
+                    }
+                }
+
+                else
+                {
+                    int threat = piece.Type switch
+                    {
+                        PieceType.Scarab => 8,
+                        PieceType.Pyramid => 6,
+                        _ => 0
+                    };
+                    score -= threat;
+                }
+
+                step++;
+            }
+        }
+
+        return score;
+    }
+
+
+
+
+    private int AnubisDefendPharoah(Rotation sideOfPharoah, Rotation rotation)
+        => sideOfPharoah == rotation ? 4 : 2;
+
+    private int PyramidDefendPharoah(Rotation sideOfPharoah, Rotation rotation)
+    {
+        var PyramidScore = 2;
+        return (sideOfPharoah, rotation) switch
+        {
+            (Rotation.Up, Rotation.LeftUp) => PyramidScore,
+            (Rotation.Up, Rotation.RightUp) => PyramidScore,
+            (Rotation.Down, Rotation.LeftDown) => PyramidScore,
+            (Rotation.Down, Rotation.RightDown) => PyramidScore,
+            (Rotation.Left, Rotation.LeftUp) => PyramidScore,
+            (Rotation.Left, Rotation.LeftDown) => PyramidScore,
+            (Rotation.Right, Rotation.RightUp) => PyramidScore,
+            (Rotation.Right, Rotation.RightDown) => PyramidScore,
+            _ => 0
+        };
     }
 
 }

@@ -9,8 +9,8 @@ import "../styles/Board.css";
 const PLAYER_ONE_AGENT = true;
 const PLAYER_TWO_AGENT = true;
 const PLAYER_ONE_AGENT_DEPTH = 2;
-const PLAYER_TWO_AGENT_DEPTH = 2;
-const TOTAL_GAMES = 20;
+const PLAYER_TWO_AGENT_DEPTH = 4;
+const TOTAL_GAMES = 5;
 
 export default function Board({game}) {
     const [moves, setMoves] = useState([]);
@@ -27,13 +27,17 @@ export default function Board({game}) {
     const [gamesCompleted, setGamesCompleted] = useState(0);
     const [allGamesFinished, setAllGamesFinished] = useState(false);
     const [allGamesData, setAllGamesData] = useState([]);
+    const [currentGameWinner, setCurrentGameWinner] = useState(null);
+
     
     const [stats, setStats] = useState({
         player1Times: [],
         player2Times: [],
         player1Moves: [],
         player2Moves: [],
-        maxMovesCount: 0
+        maxMovesCount: 0,
+        player1Wins: 0,
+        player2Wins: 0
     });
 
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
@@ -95,40 +99,69 @@ export default function Board({game}) {
         const avgOverallMoves = allMoves.length > 0 
             ? allMoves.reduce((sum, val) => sum + val, 0) / allMoves.length 
             : 0;
+
         const turnsTaken = stats.player1Times.length + stats.player2Times.length;
-        
-        // Store game data instead of logging
+
         const gameData = {
             gameNumber: gamesCompleted + 1,
+            winner: currentGameWinner,
             avgMovesEvaluated: parseFloat(avgOverallMoves.toFixed(1)),
             turnsTaken: turnsTaken
         };
-        
+
         setAllGamesData(prev => [...prev, gameData]);
     };
+
 
     const downloadGameStats = () => {
         if (allGamesData.length === 0) return;
         
-        // Calculate overall averages
         const totalAvgMoves = allGamesData.reduce((sum, game) => sum + game.avgMovesEvaluated, 0) / allGamesData.length;
         const totalAvgTurns = allGamesData.reduce((sum, game) => sum + game.turnsTaken, 0) / allGamesData.length;
         
-        // Build file content
         let fileContent = '';
         allGamesData.forEach(game => {
-            fileContent += `Game ${game.gameNumber}: Avg moves evaluated: ${game.avgMovesEvaluated}, Turns taken in game: ${game.turnsTaken}\n`;
+            fileContent += 
+                `Game ${game.gameNumber}: ` +
+                `Winner: ${game.winner}, ` +
+                `Avg moves evaluated: ${game.avgMovesEvaluated}, ` +
+                `Turns taken in game: ${game.turnsTaken}\n`;
         });
-        
-        // Add overall average at the end
-        fileContent += `\nAverage of all games: Avg moves evaluated: ${totalAvgMoves.toFixed(1)}, Turns taken in game: ${totalAvgTurns.toFixed(1)}`;
-        
-        // Download file
+
+        const totalGames = allGamesData.length;
+
+        const wins = allGamesData.reduce(
+            (acc, game) => {
+                acc[game.winner] = (acc[game.winner] || 0) + 1;
+                return acc;
+            },
+            {}
+        );
+
+        const player1Wins = wins.Player1 || 0;
+        const player2Wins = wins.Player2 || 0;
+
+        const player1WinRate = totalGames > 0
+            ? ((player1Wins / totalGames) * 100).toFixed(1)
+            : "0.0";
+
+        const player2WinRate = totalGames > 0
+            ? ((player2Wins / totalGames) * 100).toFixed(1)
+            : "0.0";
+
+
+
+        fileContent += `\nSummary (${totalGames} games):\n`;
+        fileContent += `Player1 win rate: ${player1WinRate}% (${player1Wins} wins)\n`;
+        fileContent += `Player2 win rate: ${player2WinRate}% (${player2Wins} wins)\n`;
+        fileContent += `Avg moves evaluated: ${totalAvgMoves.toFixed(1)}\n`;
+        fileContent += `Avg turns per game: ${totalAvgTurns.toFixed(1)}\n`;
+
         const blob = new Blob([fileContent], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'all_games_stats.txt';
+        link.download = `${PLAYER_ONE_AGENT_DEPTH} vs ${PLAYER_TWO_AGENT_DEPTH}, ${TOTAL_GAMES} partiju.txt`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -152,7 +185,6 @@ export default function Board({game}) {
         setExplosion(null);
         setIsProcessing(false);
         
-        // Reset the board to initial state
         if (game) {
             setBoard(game.board);
             setCurrentPlayer(game.currentPlayer);
@@ -176,10 +208,6 @@ export default function Board({game}) {
             } else {
                 setAllGamesFinished(true);
                 console.log(`All ${TOTAL_GAMES} games completed!`);
-                setTimeout(() => {
-                    downloadGameStats();
-                    alert(`All ${TOTAL_GAMES} games completed! Stats file downloaded.`);
-                }, 1000);
             }
         }
     }, [gameOver]);
@@ -190,6 +218,14 @@ export default function Board({game}) {
         setBoard(game.board);
         setCurrentPlayer(game.currentPlayer);
     }, [game]);
+
+    useEffect(() => {
+    if (allGamesFinished && allGamesData.length === TOTAL_GAMES) {
+        downloadGameStats();
+        alert(`All ${TOTAL_GAMES} games completed! Stats file downloaded.`);
+    }
+}, [allGamesFinished, allGamesData]);
+
 
     const CELL_SIZE = 50;
     const GAP = 2;
@@ -226,15 +262,17 @@ export default function Board({game}) {
         }, laserDuration);
 
         setTimeout(async () => {
-            if (data.gameEnded) {
-                setTimeout(() => {
-                    setGameOver(true);
-                    if (gamesCompleted + 1 >= TOTAL_GAMES) {
-                        alert("Game over!");
-                    }
-                }, 500);
-                return;
-            }
+        if (data.gameEnded) {
+            setCurrentGameWinner(data.winner);
+
+            setTimeout(() => {
+                setGameOver(true);
+                if (gamesCompleted + 1 >= TOTAL_GAMES) {
+                    alert("Game over!");
+                }
+            }, 500);
+            return;
+        }
 
             if (!bothAgents) {
                 setLaserPath([]);
