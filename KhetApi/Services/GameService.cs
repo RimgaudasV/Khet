@@ -181,11 +181,11 @@ public class GameService : IGameService
                         Position = currentPosition,
                         Rotation = piece.Rotation
                     };
+                    board.RemovePiece(currentPosition);
                     if (impact.GameOver)
                     {
                         return new ImpactResultModel(board, laserPath, true, GetNextPlayer(player), destroyedPiece);
                     }
-                    board.RemovePiece(currentPosition);
                     break;
                 }
 
@@ -370,6 +370,39 @@ public class GameService : IGameService
 
     }
 
+    private List<Move> GenerateAllMoves(BoardModel board, Player player)
+    {
+        var moves = new List<Move>();
+
+        for (int y = 0; y < board.Cells.Length; y++)
+        {
+            for (int x = 0; x < board.Cells[y].Length; x++)
+            {
+                var from = new Position(x, y);
+                var piece = board.GetPieceAt(from);
+
+                if (piece == null || piece.Owner != player)
+                    continue;
+
+                moves.AddRange(GenerateMoves(board, player, from, piece));
+            }
+        }
+
+        return moves;
+    }
+
+
+    private void Shuffle<T>(IList<T> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = Random.Shared.Next(i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
+    }
+
+
+
 
     public GameResponse MoveByAgent(AgentMoveRequest request)
     {
@@ -419,81 +452,73 @@ public class GameService : IGameService
         int bestScore = maximizing ? int.MinValue : int.MaxValue;
         var bestMoves = new List<Move>();
 
-        int totalMoves = 0;
-
         bool shouldPrune = false;
 
-        for (int y = 0; y < board.Cells.Length; y++)
+        var allMoves = GenerateAllMoves(board, player);
+
+        //Shuffle moves to increase variaty of moves
+        Random rng = new Random();
+        int n = allMoves.Count;
+        for (int i = n - 1; i > 0; i--)
         {
-            for (int x = 0; x < board.Cells[y].Length; x++)
+            int j = rng.Next(i + 1);
+            var temp = allMoves[i];
+            allMoves[i] = allMoves[j];
+            allMoves[j] = temp;
+        }
+
+        int totalMoves = allMoves.Count;
+
+        if (depth == MAX_DEPTH)
+            ALL_MOVES_COUNT += totalMoves;
+
+        foreach (var move in allMoves)
+        {
+            var undoInformation = MakeMoveInPlace(board, player, move);
+            bool moveResultsInGameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
+
+            Player? winnerPlayer = null;
+            if (moveResultsInGameOver)
             {
-                var from = new Position(x, y);
-                var piece = board.GetPieceAt(from);
-                if (piece == null || piece.Owner != player)
-                    continue;
-
-                var allMoves = GenerateMoves(board, player, from, piece);
-
-                totalMoves += allMoves.Count();
-
-                if (depth == MAX_DEPTH)
-                    ALL_MOVES_COUNT += allMoves.Count();
-
-
-                foreach (var move in allMoves)
-                {
-                    var undoInformation = MakeMoveInPlace(board, player, move);
-                    bool moveResultsInGameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
-
-                    Player? winnerPlayer = null;
-                    if (moveResultsInGameOver)
-                    {
-                        winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
-                    }
-
-                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver, rootPlayer, winnerPlayer).Score;
-
-                    UndoMove(board, undoInformation);
-
-                    if (maximizing)
-                    {
-                        if (score > bestScore)
-                        {
-                            bestScore = score;
-                            bestMoves.Clear();
-                            bestMoves.Add(move);
-                        }
-                        if (score == bestScore)
-                            bestMoves.Add(move);
-                        alpha = Math.Max(alpha, score);
-                    }
-                    else
-                    {
-                        if (score < bestScore)
-                        {
-                            bestScore = score;
-                            bestMoves.Clear();
-                            bestMoves.Add(move);
-                        }
-                        if (score == bestScore)
-                            bestMoves.Add(move);
-                        beta = Math.Min(beta, score);
-                    }
-
-                    if (beta <= alpha)
-                    {
-                        shouldPrune = true;
-                        break;
-                    }
-                }
-
-                if (shouldPrune) break;
+                winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
             }
 
-            if (shouldPrune) break;
+            int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver,
+                rootPlayer, winnerPlayer).Score;
+
+            UndoMove(board, undoInformation);
+
+            if (maximizing)
+            {
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestMoves.Clear();
+                }
+                if (score == bestScore)
+                    bestMoves.Add(move);
+
+                alpha = Math.Max(alpha, score);
+            }
+            else
+            {
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestMoves.Clear();
+                }
+                if (score == bestScore)
+                    bestMoves.Add(move);
+
+                beta = Math.Min(beta, score);
+            }
+
+            if (beta <= alpha)
+                break;
         }
 
         MAX_MOVES_COUNT = Math.Max(MAX_MOVES_COUNT, totalMoves);
+
 
         return new SearchResult
         {
