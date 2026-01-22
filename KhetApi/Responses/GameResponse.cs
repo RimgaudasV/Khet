@@ -3,6 +3,7 @@ using KhetApi.Models.Board;
 using KhetApi.Models.Piece;
 
 namespace KhetApi.Responses;
+
 public class GameResponse
 {
     public BoardModel Board { get; set; }
@@ -11,5 +12,7 @@ public class GameResponse
     public List<Position> Laser { get; internal set; }
     public DestroyedPiece? DestroyedPiece { get; set; }
     public int? AllMovesCount { get; set; }
-    public int? MaxMovesCount { get; set; }
+    public int? AllRoutesCount { get; set; }
+    public int? EvaluatedRoutesCount { get; set; }
+    public Player? Winner { get; set; }
 }

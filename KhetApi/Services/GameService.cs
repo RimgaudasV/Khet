@@ -6,24 +6,20 @@ using KhetApi.Models.Move;
 using KhetApi.Models.Piece;
 using KhetApi.Requests;
 using KhetApi.Responses;
+using System.Diagnostics;
 
 namespace KhetApi.Services;
 
-public class GameService : IGameService
+public class GameService(IEvaluationService evaluationService) : IGameService
 {
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
     private int MAX_DEPTH;
 
-    private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
-        { PieceType.Pyramid, 5 },
-        { PieceType.Anubis, 7 },
-        { PieceType.Pharaoh, 100 }
-    };
-
     private int ALL_MOVES_COUNT = 0;
-    private int MAX_MOVES_COUNT = 0;
+    private int ALL_ROUTES_COUNT = 0;
+    private int EVALUATED_ROUTES_COUNT = 0;
 
 
     public GameResponse StartGame()
@@ -181,11 +177,11 @@ public class GameService : IGameService
                         Position = currentPosition,
                         Rotation = piece.Rotation
                     };
+                    board.RemovePiece(currentPosition);
                     if (impact.GameOver)
                     {
                         return new ImpactResultModel(board, laserPath, true, GetNextPlayer(player), destroyedPiece);
                     }
-                    board.RemovePiece(currentPosition);
                     break;
                 }
 
@@ -370,29 +366,67 @@ public class GameService : IGameService
 
     }
 
+    private List<Move> GenerateAllMoves(BoardModel board, Player player)
+    {
+        var moves = new List<Move>();
+
+        for (int y = 0; y < board.Cells.Length; y++)
+        {
+            for (int x = 0; x < board.Cells[y].Length; x++)
+            {
+                var from = new Position(x, y);
+                var piece = board.GetPieceAt(from);
+
+                if (piece == null || piece.Owner != player)
+                    continue;
+
+                moves.AddRange(GenerateMoves(board, player, from, piece));
+            }
+        }
+
+        return moves;
+    }
+
+
+    private void Shuffle<T>(IList<T> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = Random.Shared.Next(i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
+    }
+
+
+
 
     public GameResponse MoveByAgent(AgentMoveRequest request)
     {
         MAX_DEPTH = request.Depth;
+
+        ALL_MOVES_COUNT = 0;
+        ALL_ROUTES_COUNT = 0;
+        EVALUATED_ROUTES_COUNT = 0;
+
         var search = AlphaBetaSearch(request.Board, request.Player, MAX_DEPTH, int.MinValue, int.MaxValue, false, request.Player);
 
-        var chosen = search.BestMoves[Random.Shared.Next(search.BestMoves.Count)];
-        Console.WriteLine($"Chosen: {chosen.From} -> {chosen.To}, Rot: {chosen.Rotation}");
+        var bestMove = search.BestMove;
+        Console.WriteLine($"Chosen: {bestMove.From} -> {bestMove.To}, Rot: {bestMove.Rotation}");
 
-        ImpactResultModel result = chosen.Rotation != null
+        ImpactResultModel result = bestMove.Rotation != null
             ? Rotate(new RotationRequest
             {
                 Board = request.Board,
                 Player = request.Player,
-                CurrentPosition = chosen.From,
-                NewRotation = chosen.Rotation.Value
+                CurrentPosition = bestMove.From,
+                NewRotation = bestMove.Rotation.Value
             })
             : MakeMove(new MoveRequest
             {
                 Board = request.Board,
                 Player = request.Player,
-                CurrentPosition = chosen.From,
-                NewPosition = chosen.To
+                CurrentPosition = bestMove.From,
+                NewPosition = bestMove.To
             });
 
         if (result.DestroyedPiece != null)
@@ -406,196 +440,91 @@ public class GameService : IGameService
             Laser = result.LaserPath,
             DestroyedPiece = result.DestroyedPiece,
             AllMovesCount = ALL_MOVES_COUNT,
-            MaxMovesCount = MAX_MOVES_COUNT
+            AllRoutesCount = ALL_ROUTES_COUNT,
+            EvaluatedRoutesCount = EVALUATED_ROUTES_COUNT,
+            Winner = result.GameOver && result.DestroyedPiece != null
+                ? GetNextPlayer(result.DestroyedPiece.Owner)
+                : null
         };
     }
 
     private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha, int beta, bool gameOver, Player rootPlayer, Player? winner = null)
     {
         if (depth == 0 || gameOver)
-            return new SearchResult { Score = EvaluateBoard(board, gameOver, depth, winner, rootPlayer) };
+            return new SearchResult { Score = evaluationService.EvaluateBoard(board, gameOver, depth, winner, rootPlayer, MAX_DEPTH)};
 
         bool maximizing = player == rootPlayer;
         int bestScore = maximizing ? int.MinValue : int.MaxValue;
-        var bestMoves = new List<Move>();
+        Move bestMove = new Move();
 
-        int totalMoves = 0;
+        var allMoves = GenerateAllMoves(board, player);
 
-        bool shouldPrune = false;
-
-        for (int y = 0; y < board.Cells.Length; y++)
+        Random rng = new Random();
+        int n = allMoves.Count;
+        for (int i = n - 1; i > 0; i--)
         {
-            for (int x = 0; x < board.Cells[y].Length; x++)
-            {
-                var from = new Position(x, y);
-                var piece = board.GetPieceAt(from);
-                if (piece == null || piece.Owner != player)
-                    continue;
-
-                var allMoves = GenerateMoves(board, player, from, piece);
-
-                totalMoves += allMoves.Count();
-
-                if (depth == MAX_DEPTH)
-                    ALL_MOVES_COUNT += allMoves.Count();
-
-
-                foreach (var move in allMoves)
-                {
-                    var undoInformation = MakeMoveInPlace(board, player, move);
-                    bool moveResultsInGameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
-
-                    Player? winnerPlayer = null;
-                    if (moveResultsInGameOver)
-                    {
-                        winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
-                    }
-
-                    int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver, rootPlayer, winnerPlayer).Score;
-
-                    UndoMove(board, undoInformation);
-
-                    if (maximizing)
-                    {
-                        if (score > bestScore)
-                        {
-                            bestScore = score;
-                            bestMoves.Clear();
-                            bestMoves.Add(move);
-                        }
-                        if (score == bestScore)
-                            bestMoves.Add(move);
-                        alpha = Math.Max(alpha, score);
-                    }
-                    else
-                    {
-                        if (score < bestScore)
-                        {
-                            bestScore = score;
-                            bestMoves.Clear();
-                            bestMoves.Add(move);
-                        }
-                        if (score == bestScore)
-                            bestMoves.Add(move);
-                        beta = Math.Min(beta, score);
-                    }
-
-                    if (beta <= alpha)
-                    {
-                        shouldPrune = true;
-                        break;
-                    }
-                }
-
-                if (shouldPrune) break;
-            }
-
-            if (shouldPrune) break;
+            int j = rng.Next(i + 1);
+            var temp = allMoves[i];
+            allMoves[i] = allMoves[j];
+            allMoves[j] = temp;
         }
 
-        MAX_MOVES_COUNT = Math.Max(MAX_MOVES_COUNT, totalMoves);
+        if (depth == MAX_DEPTH)
+            ALL_MOVES_COUNT = allMoves.Count;
+
+        ALL_ROUTES_COUNT += allMoves.Count;
+
+        foreach (var move in allMoves)
+        {
+            EVALUATED_ROUTES_COUNT++;
+
+            var undoInformation = MakeMoveInPlace(board, player, move);
+            bool moveResultsInGameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
+
+            Player? winnerPlayer = null;
+            if (moveResultsInGameOver)
+            {
+                winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
+            }
+
+            int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver,
+                rootPlayer, winnerPlayer).Score;
+
+            UndoMove(board, undoInformation);
+
+            if (maximizing)
+            {
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestMove = move;
+                }
+
+                alpha = Math.Max(alpha, score);
+            }
+            else
+            {
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestMove = move;
+                }
+
+                beta = Math.Min(beta, score);
+            }
+
+            if (beta <= alpha)
+                break;
+        }
 
         return new SearchResult
         {
             Score = bestScore,
-            BestMoves = bestMoves
+            BestMove = bestMove
         };
     }
 
-    private int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer)
-    {
-        int score = 0;
-
-        if (gameOver)
-        {
-            if (winner == rootPlayer)
-                return int.MaxValue - (MAX_DEPTH - depth) * 10;
-            else
-                return int.MinValue + (MAX_DEPTH - depth) * 10;
-        }
-
-        for (int y = 0; y < board.Cells.Length; y++)
-        {
-            for (int x = 0; x < board.Cells[y].Length; x++)
-            {
-                var piece = board.Cells[y][x].Piece;
-                if (piece != null && PieceValues.ContainsKey(piece.Type))
-                {
-                    int value = PieceValues[piece.Type];
-                    if (piece.Owner == rootPlayer)
-                        score += value;
-                    else
-                        score -= value;
-                }
-            }
-        }
-
-        score += EvaluateThreats(board, rootPlayer);
-
-        return score;
-    }
-
-    private int EvaluateThreats(BoardModel board, Player rootPlayer)
-    {
-        int threatScore = 0;
-
-        var myLaserResult = SimulateLaser(board, rootPlayer);
-        var opponentLaserResult = SimulateLaser(board, GetNextPlayer(rootPlayer));
-
-        if (opponentLaserResult != null)
-        {
-            int threat = PieceValues.GetValueOrDefault(opponentLaserResult.Type, 0);
-            if (opponentLaserResult.Owner == rootPlayer)
-                threatScore -= threat;
-        }
-
-        if (myLaserResult != null)
-        {
-            int threat = PieceValues.GetValueOrDefault(myLaserResult.Type, 0);
-            if (myLaserResult.Owner != rootPlayer)
-                threatScore += threat;
-        }
-
-        return threatScore;
-    }
-
-    private PieceModel? SimulateLaser(BoardModel board, Player player)
-    {
-        var currentPosition = player == Player.Player1
-            ? new Position(9, 7)
-            : new Position(0, 0);
-
-        var laserDirection = RotationMapper.ToLaserDirection(board.GetPieceAt(currentPosition).Rotation);
-
-        while (true)
-        {
-            currentPosition = MoveOneStep(currentPosition, laserDirection);
-
-            if (!board.IsInsideBoard(currentPosition))
-                break;
-
-            var cell = board.Cells[currentPosition.Y][currentPosition.X];
-            var piece = cell.Piece;
-
-            if (cell.IsDisabled && piece == null)
-                continue;
-
-            if (piece != null)
-            {
-                var impact = CalculateImpact(laserDirection, piece);
-
-                if (impact.DestroyPiece)
-                    return piece;
-
-                if (impact.NewDirection is null)
-                    break;
-
-                laserDirection = impact.NewDirection.Value;
-            }
-        }
-
-        return null;
-    }
+  
 
 }
 
