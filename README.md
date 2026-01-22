@@ -24,5 +24,19 @@ In this project:
 
 ---
 
-To launch frontend part, use ``npm start`` in "khetweb" project
-To launch backend part, use ``dotnetrun`` in "KhetApi" project
+### Frontend (React)
+
+To launch the frontend application, navigate to the `khetweb` project directory and run:
+
+```bash
+npm install
+npm start
+```
+
+### BackEnd (C#)
+
+For backend part, navigate to the `KhetApi` project and run:
+```
+dotnet build
+dotnet run
+```
