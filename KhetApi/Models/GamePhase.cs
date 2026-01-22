@@ -1,4 +1,4 @@
-﻿namespace KhetApi.Services;
+﻿namespace KhetApi.Models;
 
 public enum GamePhase
 {
