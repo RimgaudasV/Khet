@@ -9,8 +9,8 @@ import "../styles/Board.css";
 const PLAYER_ONE_AGENT = true;
 const PLAYER_TWO_AGENT = true;
 const PLAYER_ONE_AGENT_DEPTH = 2;
-const PLAYER_TWO_AGENT_DEPTH = 4;
-const TOTAL_GAMES = 5;
+const PLAYER_TWO_AGENT_DEPTH = 2;
+const TOTAL_GAMES = 10;
 
 export default function Board({game}) {
     const [moves, setMoves] = useState([]);
@@ -28,17 +28,22 @@ export default function Board({game}) {
     const [allGamesFinished, setAllGamesFinished] = useState(false);
     const [allGamesData, setAllGamesData] = useState([]);
     const [currentGameWinner, setCurrentGameWinner] = useState(null);
+    const [perTurnStats, setPerTurnStats] = useState([]);
 
     
     const [stats, setStats] = useState({
         player1Times: [],
         player2Times: [],
-        player1Moves: [],
-        player2Moves: [],
-        maxMovesCount: 0,
+        player1AllMoves: [],
+        player2AllMoves: [],
+        player1AllRoutes: [],
+        player2AllRoutes: [],
+        player1EvaluatedRoutes: [],
+        player2EvaluatedRoutes: [],
         player1Wins: 0,
         player2Wins: 0
     });
+
 
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
 
@@ -66,7 +71,7 @@ export default function Board({game}) {
             ).then(result => {
                 const endTime = performance.now();
                 const duration = endTime - startTime;
-                updateStats(game.currentPlayer, duration, result.allMovesCount, result.maxMovesCount);
+                updateStats(game.currentPlayer, duration, result.allMovesCount, result.allRoutesCount, result.evaluatedRoutesCount);
                 setIsProcessing(false);
                 handleLaserResult(result);
             }).catch(err => {
@@ -76,57 +81,157 @@ export default function Board({game}) {
         }
     }
 
-    const updateStats = (player, duration, movesCount, maxMoves) => {
+    const updateStats = (player, duration, allMovesCount, allRoutesCount, evaluatedRoutesCount) => {
         setStats(prevStats => {
             const newStats = { ...prevStats };
             if (player === "Player1") {
-                newStats.player1Times = [...prevStats.player1Times, duration];
-                newStats.player1Moves = [...prevStats.player1Moves, movesCount || 0];
+            newStats.player1Times = [...prevStats.player1Times, duration];
+            newStats.player1AllMoves = [...(prevStats.player1AllMoves || []), allMovesCount || 0];
+            newStats.player1AllRoutes = [...(prevStats.player1AllRoutes || []), allRoutesCount || 0];
+            newStats.player1EvaluatedRoutes = [...(prevStats.player1EvaluatedRoutes || []), evaluatedRoutesCount || 0];
             } else {
-                newStats.player2Times = [...prevStats.player2Times, duration];
-                newStats.player2Moves = [...prevStats.player2Moves, movesCount || 0];
-            }
-
-            if (maxMoves && maxMoves > prevStats.maxMovesCount) {
-                newStats.maxMovesCount = maxMoves;
+            newStats.player2Times = [...prevStats.player2Times, duration];
+            newStats.player2AllMoves = [...(prevStats.player2AllMoves || []), allMovesCount || 0];
+            newStats.player2AllRoutes = [...(prevStats.player2AllRoutes || []), allRoutesCount || 0];
+            newStats.player2EvaluatedRoutes = [...(prevStats.player2EvaluatedRoutes || []), evaluatedRoutesCount || 0];
             }
             return newStats;
         });
+        setPerTurnStats(prev => [
+            ...prev,
+            {
+                turn: prev.length + 1,
+                routes: allRoutesCount || 0,
+                evaluated: evaluatedRoutesCount || 0
+            }
+        ]);
+
     };
 
-    const logGameStats = () => {
-        const allMoves = [...stats.player1Moves, ...stats.player2Moves];
-        const avgOverallMoves = allMoves.length > 0 
-            ? allMoves.reduce((sum, val) => sum + val, 0) / allMoves.length 
+const logGameStats = () => {
+    const allLegalMoves = [
+        ...(stats.player1AllMoves || []),
+        ...(stats.player2AllMoves || [])
+    ];
+
+    const allRoutes = [
+        ...(stats.player1AllRoutes || []),
+        ...(stats.player2AllRoutes || [])
+    ];
+
+    const evaluatedRoutes = [
+        ...(stats.player1EvaluatedRoutes || []),
+        ...(stats.player2EvaluatedRoutes || [])
+    ];
+
+    const avgLegalMoves =
+        allLegalMoves.length > 0
+            ? allLegalMoves.reduce((s, v) => s + v, 0) / allLegalMoves.length
             : 0;
 
-        const turnsTaken = stats.player1Times.length + stats.player2Times.length;
+    const avgRoutes =
+        allRoutes.length > 0
+            ? allRoutes.reduce((s, v) => s + v, 0) / allRoutes.length
+            : 0;
 
-        const gameData = {
-            gameNumber: gamesCompleted + 1,
-            winner: currentGameWinner,
-            avgMovesEvaluated: parseFloat(avgOverallMoves.toFixed(1)),
-            turnsTaken: turnsTaken
-        };
+    const avgEvaluatedRoutes =
+        evaluatedRoutes.length > 0
+            ? evaluatedRoutes.reduce((s, v) => s + v, 0) / evaluatedRoutes.length
+            : 0;
 
-        setAllGamesData(prev => [...prev, gameData]);
+    const pruningPercentage =
+        avgRoutes > 0
+            ? ((avgRoutes - avgEvaluatedRoutes) / avgRoutes) * 100
+            : 0;
+
+    const turnsTaken =
+        stats.player1Times.length + stats.player2Times.length;
+
+    const avgPlayer1Time =
+        stats.player1Times.length > 0
+            ? stats.player1Times.reduce((s, v) => s + v, 0) / stats.player1Times.length
+            : 0;
+
+    const avgPlayer2Time =
+        stats.player2Times.length > 0
+            ? stats.player2Times.reduce((s, v) => s + v, 0) / stats.player2Times.length
+            : 0;
+
+
+    const gameData = {
+        gameNumber: gamesCompleted + 1,
+        winner: currentGameWinner,
+        avgLegalMovesPerTurn: Number(avgLegalMoves.toFixed(1)),
+        avgRoutes: Number(avgRoutes.toFixed(1)),
+        avgEvaluatedRoutes: Number(avgEvaluatedRoutes.toFixed(1)),
+        pruningPercentage: Number(pruningPercentage.toFixed(1)),
+        avgPlayer1Time: Number(avgPlayer1Time.toFixed(1)),
+        avgPlayer2Time: Number(avgPlayer2Time.toFixed(1)),
+        turnsTaken
     };
+
+
+    setAllGamesData(prev => [...prev, gameData]);
+};
+
+
+const downloadPerTurnStats = () => {
+    if (perTurnStats.length === 0) return;
+
+    let content = "Turn,TotalRoutes,EvaluatedRoutes\n";
+    perTurnStats.forEach(row => {
+        content += `${row.turn},${row.routes},${row.evaluated}\n`;
+    });
+
+    const blob = new Blob([content], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "per_turn_routes.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
 
 
     const downloadGameStats = () => {
         if (allGamesData.length === 0) return;
         
-        const totalAvgMoves = allGamesData.reduce((sum, game) => sum + game.avgMovesEvaluated, 0) / allGamesData.length;
-        const totalAvgTurns = allGamesData.reduce((sum, game) => sum + game.turnsTaken, 0) / allGamesData.length;
-        
+        const totalAvgLegalMoves =
+            allGamesData.reduce((s, g) => s + g.avgLegalMovesPerTurn, 0) / allGamesData.length;
+
+        const totalAvgRoutes =
+            allGamesData.reduce((s, g) => s + g.avgRoutes, 0) / allGamesData.length;
+
+        const totalAvgEvaluatedRoutes =
+            allGamesData.reduce((s, g) => s + g.avgEvaluatedRoutes, 0) / allGamesData.length;
+
+        const totalAvgPruning =
+            allGamesData.reduce((s, g) => s + g.pruningPercentage, 0) / allGamesData.length;
+
+        const totalAvgTurns =
+            allGamesData.reduce((s, g) => s + g.turnsTaken, 0) / allGamesData.length;
+
+        const totalAvgPlayer1Time =
+            allGamesData.reduce((s, g) => s + g.avgPlayer1Time, 0) / allGamesData.length;
+
+        const totalAvgPlayer2Time =
+            allGamesData.reduce((s, g) => s + g.avgPlayer2Time, 0) / allGamesData.length;
+
         let fileContent = '';
         allGamesData.forEach(game => {
-            fileContent += 
+            fileContent +=
                 `Game ${game.gameNumber}: ` +
                 `Winner: ${game.winner}, ` +
-                `Avg moves evaluated: ${game.avgMovesEvaluated}, ` +
-                `Turns taken in game: ${game.turnsTaken}\n`;
+                `Avg legal moves: ${game.avgLegalMovesPerTurn}, ` +
+                `Avg routes: ${game.avgRoutes}, ` +
+                `Avg evaluated routes: ${game.avgEvaluatedRoutes}, ` +
+                `Pruning: ${game.pruningPercentage}%, ` +
+                `P1 avg time: ${game.avgPlayer1Time}ms, ` +
+                `P2 avg time: ${game.avgPlayer2Time}ms, ` +
+                `Turns: ${game.turnsTaken}\n`;
         });
+
 
         const totalGames = allGamesData.length;
 
@@ -154,7 +259,12 @@ export default function Board({game}) {
         fileContent += `\nSummary (${totalGames} games):\n`;
         fileContent += `Player1 win rate: ${player1WinRate}% (${player1Wins} wins)\n`;
         fileContent += `Player2 win rate: ${player2WinRate}% (${player2Wins} wins)\n`;
-        fileContent += `Avg moves evaluated: ${totalAvgMoves.toFixed(1)}\n`;
+        fileContent += `Avg legal moves per turn: ${totalAvgLegalMoves.toFixed(1)}\n`;
+        fileContent += `Avg routes per turn: ${totalAvgRoutes.toFixed(1)}\n`;
+        fileContent += `Avg evaluated routes per turn: ${totalAvgEvaluatedRoutes.toFixed(1)}\n`;
+        fileContent += `Avg pruning percentage: ${totalAvgPruning.toFixed(1)}%\n`;
+        fileContent += `Avg Player1 time per turn: ${totalAvgPlayer1Time.toFixed(1)}ms\n`;
+        fileContent += `Avg Player2 time per turn: ${totalAvgPlayer2Time.toFixed(1)}ms\n`;
         fileContent += `Avg turns per game: ${totalAvgTurns.toFixed(1)}\n`;
 
         const blob = new Blob([fileContent], { type: 'text/plain' });
@@ -173,9 +283,14 @@ export default function Board({game}) {
         setStats({
             player1Times: [],
             player2Times: [],
-            player1Moves: [],
-            player2Moves: [],
-            maxMovesCount: 0
+            player1AllMoves: [],
+            player2AllMoves: [],
+            player1AllRoutes: [],
+            player2AllRoutes: [],
+            player1EvaluatedRoutes: [],
+            player2EvaluatedRoutes: [],
+            player1Wins: 0,
+            player2Wins: 0
         });
         setMoves([]);
         setSelectedPiece(null);
@@ -222,6 +337,7 @@ export default function Board({game}) {
     useEffect(() => {
     if (allGamesFinished && allGamesData.length === TOTAL_GAMES) {
         downloadGameStats();
+        downloadPerTurnStats();
         alert(`All ${TOTAL_GAMES} games completed! Stats file downloaded.`);
     }
 }, [allGamesFinished, allGamesData]);
@@ -291,7 +407,7 @@ export default function Board({game}) {
                     );
                     const endTime = performance.now();
                     const duration = endTime - startTime;
-                    updateStats(data.currentPlayer, duration, agentResult.allMovesCount, agentResult.maxMovesCount);
+                    updateStats(data.currentPlayer, duration, agentResult.allMovesCount, agentResult.allRoutesCount, agentResult.evaluatedRoutesCount);
                     setIsProcessing(false);
                     handleLaserResult(agentResult);
                 } catch (err) {
