@@ -1,5 +1,3 @@
-/* src/styles/board.css */
-
 .board-container {
     display: flex;
     justify-content: center;
@@ -17,7 +15,7 @@
     flex-direction: column;
     gap: 2px;
     justify-content: flex-start;
-    margin-top: 33px;
+    margin-top: 32px;
 }
 
 .y-label {
@@ -102,7 +100,6 @@
     pointer-events: none;
 }
 
-/* Rotation controls below the board */
 .rotation-controls {
     display: flex;
     align-items: center;

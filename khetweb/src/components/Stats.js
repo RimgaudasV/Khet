@@ -29,16 +29,12 @@ export default function AgentStats({ stats }) {
     const avgPlayer2Time = calculateAverage(player2Times);
     const avgOverallTime = calculateAverage(allTimes);
     
-    // Average legal moves available per turn
-    const avgLegalMovesPerTurn = calculateAverage(allMoves);
+    const avgPossibleMovesPerTurn = calculateAverage(allMoves);
     
-    // Average total routes in search tree per turn
     const avgTotalRoutesPerTurn = calculateAverage(allRoutes);
     
-    // Average routes actually evaluated per turn
     const avgEvaluatedRoutesPerTurn = calculateAverage(allEvaluatedRoutes);
     
-    // Pruning efficiency: what % of routes were pruned
     const pruningEfficiency = avgTotalRoutesPerTurn > 0 
         ? ((avgTotalRoutesPerTurn - avgEvaluatedRoutesPerTurn) / avgTotalRoutesPerTurn * 100)
         : 0;
@@ -80,7 +76,7 @@ export default function AgentStats({ stats }) {
             <div className="agent-stats-overall">
                 <h4>Overall Statistics</h4>
                 <div>Avg Time per Turn: <strong>{formatTime(avgOverallTime)}</strong></div>
-                <div>Avg Legal Moves per Turn: <strong>{formatNumber(avgLegalMovesPerTurn)}</strong></div>
+                <div>Avg Possible Moves per Turn: <strong>{formatNumber(avgPossibleMovesPerTurn)}</strong></div>
                 <div>Avg Total Routes per Turn: <strong>{formatNumber(avgTotalRoutesPerTurn)}</strong></div>
                 <div>Avg Evaluated Routes per Turn: <strong>{formatNumber(avgEvaluatedRoutesPerTurn)}</strong></div>
                 <div>Pruning Efficiency: <strong>{pruningEfficiency.toFixed(1)}%</strong></div>
