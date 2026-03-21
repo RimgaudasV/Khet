@@ -27,10 +27,8 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         var board = new BoardModel();
         return new GameResponse
         {
-            Board = board,
-            CurrentPlayer = Player.Player1,
-            GameEnded = false,
-            Laser = new List<Position>()
+            Board = new BoardModel(),
+            CurrentPlayer = Player.Player1
         };
     }
 
@@ -387,19 +385,6 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         return moves;
     }
 
-
-    private void Shuffle<T>(IList<T> list)
-    {
-        for (int i = list.Count - 1; i > 0; i--)
-        {
-            int j = Random.Shared.Next(i + 1);
-            (list[i], list[j]) = (list[j], list[i]);
-        }
-    }
-
-
-
-
     public GameResponse MoveByAgent(AgentMoveRequest request)
     {
         MAX_DEPTH = request.Depth;
@@ -524,15 +509,8 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         };
     }
 
-  
 
 }
-
-
-
-
-
-
 
 
 public record ImpactResult(LaserDirection? NewDirection, bool DestroyPiece, bool GameOver);

@@ -17,7 +17,8 @@ project.nuget.cache
 .vs/
 .idea/
 
-
+#Claude
+CLAUDE.md
 
 # Dependencies
 node_modules/
