@@ -42,6 +42,30 @@ function App() {
         const saved = localStorage.getItem('moveDelay');
         return saved !== null ? parseInt(saved) : 0;
     });
+    const [playerOneEvalMaterial, setPlayerOneEvalMaterial] = useState(() => {
+        const saved = localStorage.getItem('playerOneEvalMaterial');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [playerTwoEvalMaterial, setPlayerTwoEvalMaterial] = useState(() => {
+        const saved = localStorage.getItem('playerTwoEvalMaterial');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [playerOneEvalAlignment, setPlayerOneEvalAlignment] = useState(() => {
+        const saved = localStorage.getItem('playerOneEvalAlignment');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [playerTwoEvalAlignment, setPlayerTwoEvalAlignment] = useState(() => {
+        const saved = localStorage.getItem('playerTwoEvalAlignment');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [playerOneEvalSphinx, setPlayerOneEvalSphinx] = useState(() => {
+        const saved = localStorage.getItem('playerOneEvalSphinx');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [playerTwoEvalSphinx, setPlayerTwoEvalSphinx] = useState(() => {
+        const saved = localStorage.getItem('playerTwoEvalSphinx');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
 
     useEffect(() => {
         localStorage.setItem('playerOneAgent', JSON.stringify(playerOneAgent));
@@ -76,11 +100,37 @@ function App() {
     }, [moveDelay]);
 
     useEffect(() => {
+        localStorage.setItem('playerOneEvalMaterial', JSON.stringify(playerOneEvalMaterial));
+    }, [playerOneEvalMaterial]);
+    useEffect(() => {
+        localStorage.setItem('playerTwoEvalMaterial', JSON.stringify(playerTwoEvalMaterial));
+    }, [playerTwoEvalMaterial]);
+    useEffect(() => {
+        localStorage.setItem('playerOneEvalAlignment', JSON.stringify(playerOneEvalAlignment));
+    }, [playerOneEvalAlignment]);
+    useEffect(() => {
+        localStorage.setItem('playerTwoEvalAlignment', JSON.stringify(playerTwoEvalAlignment));
+    }, [playerTwoEvalAlignment]);
+    useEffect(() => {
+        localStorage.setItem('playerOneEvalSphinx', JSON.stringify(playerOneEvalSphinx));
+    }, [playerOneEvalSphinx]);
+    useEffect(() => {
+        localStorage.setItem('playerTwoEvalSphinx', JSON.stringify(playerTwoEvalSphinx));
+    }, [playerTwoEvalSphinx]);
+
+    useEffect(() => {
         startGame().then(setGame).catch(console.error);
     }, []);
 
     const handleStartGame = () => {
         setGameStarted(true);
+        setGamesCompleted(0);
+        setAllGamesFinished(false);
+    };
+
+    const handleRestart = () => {
+        startGame().then(setGame).catch(console.error);
+        setGameStarted(false);
         setGamesCompleted(0);
         setAllGamesFinished(false);
     };
@@ -93,7 +143,13 @@ function App() {
         totalGames,
         downloadOverallStats,
         downloadPerTurnCSV,
-        moveDelay
+        moveDelay,
+        playerOneEvalMaterial,
+        playerTwoEvalMaterial,
+        playerOneEvalAlignment,
+        playerTwoEvalAlignment,
+        playerOneEvalSphinx,
+        playerTwoEvalSphinx
     };
 
 return (
@@ -119,8 +175,21 @@ return (
                 setMoveDelay={setMoveDelay}
                 gameStarted={gameStarted}
                 onStartGame={handleStartGame}
+                onRestart={handleRestart}
                 gamesCompleted={gamesCompleted}
                 allGamesFinished={allGamesFinished}
+                playerOneEvalMaterial={playerOneEvalMaterial}
+                setPlayerOneEvalMaterial={setPlayerOneEvalMaterial}
+                playerTwoEvalMaterial={playerTwoEvalMaterial}
+                setPlayerTwoEvalMaterial={setPlayerTwoEvalMaterial}
+                playerOneEvalAlignment={playerOneEvalAlignment}
+                setPlayerOneEvalAlignment={setPlayerOneEvalAlignment}
+                playerTwoEvalAlignment={playerTwoEvalAlignment}
+                setPlayerTwoEvalAlignment={setPlayerTwoEvalAlignment}
+                playerOneEvalSphinx={playerOneEvalSphinx}
+                setPlayerOneEvalSphinx={setPlayerOneEvalSphinx}
+                playerTwoEvalSphinx={playerTwoEvalSphinx}
+                setPlayerTwoEvalSphinx={setPlayerTwoEvalSphinx}
             />
 
             <div className="board-section">

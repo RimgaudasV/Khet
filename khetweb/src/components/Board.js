@@ -21,6 +21,16 @@ export default function Board({
     const PLAYER_ONE_AGENT_DEPTH = settings.playerOneDepth;
     const PLAYER_TWO_AGENT_DEPTH = settings.playerTwoDepth;
     const TOTAL_GAMES = settings.totalGames;
+    const PLAYER_ONE_EVAL_CONFIG = {
+        UseMaterial: settings.playerOneEvalMaterial,
+        UsePharaohAlignment: settings.playerOneEvalAlignment,
+        UseSphinxSupport: settings.playerOneEvalSphinx
+    };
+    const PLAYER_TWO_EVAL_CONFIG = {
+        UseMaterial: settings.playerTwoEvalMaterial,
+        UsePharaohAlignment: settings.playerTwoEvalAlignment,
+        UseSphinxSupport: settings.playerTwoEvalSphinx
+    };
 
     const [moves, setMoves] = useState([]);
     const [selectedPiece, setSelectedPiece] = useState(null);
@@ -65,14 +75,19 @@ export default function Board({
         return player === "Player1" ? PLAYER_ONE_AGENT_DEPTH : PLAYER_TWO_AGENT_DEPTH;
     };
 
+    const getAgentEvalConfig = (player) => {
+        return player === "Player1" ? PLAYER_ONE_EVAL_CONFIG : PLAYER_TWO_EVAL_CONFIG;
+    };
+
     function handleStartGame() {
         if (game && isCurrentPlayerAgent(game.currentPlayer)) {
             setIsProcessing(true);
             const startTime = performance.now();
             moveByAgent(
-                game.board, 
-                game.currentPlayer, 
-                getAgentDepth(game.currentPlayer)
+                game.board,
+                game.currentPlayer,
+                getAgentDepth(game.currentPlayer),
+                getAgentEvalConfig(game.currentPlayer)
             ).then(result => {
                 const endTime = performance.now();
                 const duration = endTime - startTime;
@@ -340,6 +355,24 @@ const downloadPerTurnStats = () => {
 
         setBoard(game.board);
         setCurrentPlayer(game.currentPlayer);
+        setGameOver(false);
+        setStats({
+            player1Times: [], player2Times: [],
+            player1AllMoves: [], player2AllMoves: [],
+            player1AllRoutes: [], player2AllRoutes: [],
+            player1EvaluatedRoutes: [], player2EvaluatedRoutes: [],
+            player1Wins: 0, player2Wins: 0
+        });
+        setAllGamesData([]);
+        setCurrentGameWinner(null);
+        setMoves([]);
+        setSelectedPiece(null);
+        setLaserPath([]);
+        setValidRotations([]);
+        setDestroyedPiece(null);
+        setExplosion(null);
+        setIsProcessing(false);
+        setPerTurnStats([]);
     }, [game]);
 
     useEffect(() => {
@@ -416,9 +449,10 @@ const downloadPerTurnStats = () => {
                 const startTime = performance.now();
                 try {
                     const agentResult = await moveByAgent(
-                        data.board, 
-                        data.currentPlayer, 
-                        getAgentDepth(data.currentPlayer)
+                        data.board,
+                        data.currentPlayer,
+                        getAgentDepth(data.currentPlayer),
+                        getAgentEvalConfig(data.currentPlayer)
                     );
                     const endTime = performance.now();
                     const duration = endTime - startTime;

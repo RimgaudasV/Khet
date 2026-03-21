@@ -16,7 +16,7 @@ public class EvaluationService : IEvaluationService
     };
 
 
-    public int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer, int maxDepth)
+    public int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer, int maxDepth, EvaluationConfig evalConfig)
     {
         MAX_DEPTH = maxDepth;
 
@@ -30,10 +30,13 @@ public class EvaluationService : IEvaluationService
 
         int score = 0;
 
-        score += EvaluateMaterial(boardInfo.Pieces, rootPlayer);
+        if (evalConfig.UseMaterial)
+            score += EvaluateMaterial(boardInfo.Pieces, rootPlayer);
         //score += EvaluatePhaseSpecific(board, boardInfo.Pieces, rootPlayer, phase);
-        score += EvaluatePharaohAlignment(boardInfo.Pieces, rootPlayer);
-        score += EvaluateSphinxSupport(board, rootPlayer, boardInfo.Pieces);
+        if (evalConfig.UsePharaohAlignment)
+            score += EvaluatePharaohAlignment(boardInfo.Pieces, rootPlayer);
+        if (evalConfig.UseSphinxSupport)
+            score += EvaluateSphinxSupport(board, rootPlayer, boardInfo.Pieces);
         //score += EvaluatePharaohThreats(boardInfo.PharaohPosition, board, rootPlayer);
 
         score += Random.Shared.Next(-1, 2);

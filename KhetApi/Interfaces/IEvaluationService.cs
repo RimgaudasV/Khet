@@ -5,6 +5,6 @@ namespace KhetApi.Interfaces
 {
     public interface IEvaluationService
     {
-        int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer, int maxDepth);
+        int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer, int maxDepth, EvaluationConfig evalConfig);
     }
 }
