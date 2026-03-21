@@ -355,6 +355,24 @@ const downloadPerTurnStats = () => {
 
         setBoard(game.board);
         setCurrentPlayer(game.currentPlayer);
+        setGameOver(false);
+        setStats({
+            player1Times: [], player2Times: [],
+            player1AllMoves: [], player2AllMoves: [],
+            player1AllRoutes: [], player2AllRoutes: [],
+            player1EvaluatedRoutes: [], player2EvaluatedRoutes: [],
+            player1Wins: 0, player2Wins: 0
+        });
+        setAllGamesData([]);
+        setCurrentGameWinner(null);
+        setMoves([]);
+        setSelectedPiece(null);
+        setLaserPath([]);
+        setValidRotations([]);
+        setDestroyedPiece(null);
+        setExplosion(null);
+        setIsProcessing(false);
+        setPerTurnStats([]);
     }, [game]);
 
     useEffect(() => {

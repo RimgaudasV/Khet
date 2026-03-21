@@ -128,6 +128,13 @@ function App() {
         setAllGamesFinished(false);
     };
 
+    const handleRestart = () => {
+        startGame().then(setGame).catch(console.error);
+        setGameStarted(false);
+        setGamesCompleted(0);
+        setAllGamesFinished(false);
+    };
+
     const settings = {
         playerOneAgent,
         playerTwoAgent,
@@ -168,6 +175,7 @@ return (
                 setMoveDelay={setMoveDelay}
                 gameStarted={gameStarted}
                 onStartGame={handleStartGame}
+                onRestart={handleRestart}
                 gamesCompleted={gamesCompleted}
                 allGamesFinished={allGamesFinished}
                 playerOneEvalMaterial={playerOneEvalMaterial}

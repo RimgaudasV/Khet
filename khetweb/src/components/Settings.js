@@ -20,6 +20,7 @@ export default function Settings({
     setMoveDelay,
     gameStarted,
     onStartGame,
+    onRestart,
     gamesCompleted,
     allGamesFinished,
     playerOneEvalMaterial,
@@ -248,6 +249,11 @@ export default function Settings({
                             <>Game {gamesCompleted + 1}/{totalGames}</>
                         )}
                     </p>
+                    {allGamesFinished && (
+                        <button className="start-game-button" onClick={onRestart}>
+                            Run Again
+                        </button>
+                    )}
                 </div>
             )}
         </div>
