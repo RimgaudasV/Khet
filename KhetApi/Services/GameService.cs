@@ -16,6 +16,7 @@ public class GameService(IEvaluationService evaluationService) : IGameService
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
 
     private int MAX_DEPTH;
+    private EvaluationConfig _evalConfig = new();
 
     private int ALL_MOVES_COUNT = 0;
     private int ALL_ROUTES_COUNT = 0;
@@ -388,6 +389,7 @@ public class GameService(IEvaluationService evaluationService) : IGameService
     public GameResponse MoveByAgent(AgentMoveRequest request)
     {
         MAX_DEPTH = request.Depth;
+        _evalConfig = request.EvaluationConfig ?? new();
 
         ALL_MOVES_COUNT = 0;
         ALL_ROUTES_COUNT = 0;
@@ -436,7 +438,7 @@ public class GameService(IEvaluationService evaluationService) : IGameService
     private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha, int beta, bool gameOver, Player rootPlayer, Player? winner = null)
     {
         if (depth == 0 || gameOver)
-            return new SearchResult { Score = evaluationService.EvaluateBoard(board, gameOver, depth, winner, rootPlayer, MAX_DEPTH)};
+            return new SearchResult { Score = evaluationService.EvaluateBoard(board, gameOver, depth, winner, rootPlayer, MAX_DEPTH, _evalConfig)};
 
         bool maximizing = player == rootPlayer;
         int bestScore = maximizing ? int.MinValue : int.MaxValue;

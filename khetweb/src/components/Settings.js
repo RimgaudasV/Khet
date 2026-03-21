@@ -21,7 +21,19 @@ export default function Settings({
     gameStarted,
     onStartGame,
     gamesCompleted,
-    allGamesFinished
+    allGamesFinished,
+    playerOneEvalMaterial,
+    setPlayerOneEvalMaterial,
+    playerTwoEvalMaterial,
+    setPlayerTwoEvalMaterial,
+    playerOneEvalAlignment,
+    setPlayerOneEvalAlignment,
+    playerTwoEvalAlignment,
+    setPlayerTwoEvalAlignment,
+    playerOneEvalSphinx,
+    setPlayerOneEvalSphinx,
+    playerTwoEvalSphinx,
+    setPlayerTwoEvalSphinx,
 }) {
     return (
         <div className="settings-sidebar">
@@ -64,6 +76,27 @@ export default function Settings({
                                 disabled={gameStarted}
                             />
                         </label>
+                        <div className="eval-methods">
+                            <span className="eval-methods-label">Evaluation methods:</span>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={playerOneEvalMaterial}
+                                    onChange={(e) => setPlayerOneEvalMaterial(e.target.checked)}
+                                    disabled={gameStarted} />
+                                Material score
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={playerOneEvalAlignment}
+                                    onChange={(e) => setPlayerOneEvalAlignment(e.target.checked)}
+                                    disabled={gameStarted} />
+                                Pharaoh alignment
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={playerOneEvalSphinx}
+                                    onChange={(e) => setPlayerOneEvalSphinx(e.target.checked)}
+                                    disabled={gameStarted} />
+                                Sphinx support
+                            </label>
+                        </div>
                     </div>
                 )}
             </div>
@@ -105,6 +138,27 @@ export default function Settings({
                                 disabled={gameStarted}
                             />
                         </label>
+                        <div className="eval-methods">
+                            <span className="eval-methods-label">Evaluation methods:</span>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={playerTwoEvalMaterial}
+                                    onChange={(e) => setPlayerTwoEvalMaterial(e.target.checked)}
+                                    disabled={gameStarted} />
+                                Material score
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={playerTwoEvalAlignment}
+                                    onChange={(e) => setPlayerTwoEvalAlignment(e.target.checked)}
+                                    disabled={gameStarted} />
+                                Pharaoh alignment
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={playerTwoEvalSphinx}
+                                    onChange={(e) => setPlayerTwoEvalSphinx(e.target.checked)}
+                                    disabled={gameStarted} />
+                                Sphinx support
+                            </label>
+                        </div>
                     </div>
                 )}
             </div>

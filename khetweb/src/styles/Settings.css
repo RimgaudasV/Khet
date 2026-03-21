@@ -56,6 +56,26 @@
     margin-left: 26px;
 }
 
+.eval-methods {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #ddd;
+}
+
+.eval-methods-label {
+    display: block;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.eval-methods .checkbox-label {
+    font-size: 13px;
+    margin: 5px 0;
+}
+
 .depth-control label,
 .settings-section > label {
     display: flex;
