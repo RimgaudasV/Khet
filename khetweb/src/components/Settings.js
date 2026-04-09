@@ -35,7 +35,28 @@ export default function Settings({
     setPlayerOneEvalSphinx,
     playerTwoEvalSphinx,
     setPlayerTwoEvalSphinx,
+    playerOnePieceValuePyramid,
+    setPlayerOnePieceValuePyramid,
+    playerTwoPieceValuePyramid,
+    setPlayerTwoPieceValuePyramid,
+    playerOnePieceValueAnubis,
+    setPlayerOnePieceValueAnubis,
+    playerTwoPieceValueAnubis,
+    setPlayerTwoPieceValueAnubis,
+    playerOnePieceValuePharaoh,
+    setPlayerOnePieceValuePharaoh,
+    playerTwoPieceValuePharaoh,
+    setPlayerTwoPieceValuePharaoh,
 }) {
+    const makePieceValueHandler = (setter) => (e) => {
+        const val = e.target.value;
+        if (val === '') { setter(''); return; }
+        const num = parseInt(val);
+        if (!isNaN(num)) setter(num);
+    };
+    const makePieceValueBlurHandler = (setter) => (e) => {
+        if (e.target.value === '') setter(0);
+    };
     return (
         <div className="settings-sidebar">
             <h2>Game Configuration</h2>
@@ -85,6 +106,13 @@ export default function Settings({
                                     disabled={gameStarted} />
                                 Material score
                             </label>
+                            {playerOneEvalMaterial && (
+                                <div className="piece-values">
+                                    <label>Pyramid: <input type="number" min="0" value={playerOnePieceValuePyramid} onChange={makePieceValueHandler(setPlayerOnePieceValuePyramid)} onBlur={makePieceValueBlurHandler(setPlayerOnePieceValuePyramid)} disabled={gameStarted} /></label>
+                                    <label>Anubis: <input type="number" min="0" value={playerOnePieceValueAnubis} onChange={makePieceValueHandler(setPlayerOnePieceValueAnubis)} onBlur={makePieceValueBlurHandler(setPlayerOnePieceValueAnubis)} disabled={gameStarted} /></label>
+                                    <label>Pharaoh: <input type="number" min="0" value={playerOnePieceValuePharaoh} onChange={makePieceValueHandler(setPlayerOnePieceValuePharaoh)} onBlur={makePieceValueBlurHandler(setPlayerOnePieceValuePharaoh)} disabled={gameStarted} /></label>
+                                </div>
+                            )}
                             <label className="checkbox-label">
                                 <input type="checkbox" checked={playerOneEvalAlignment}
                                     onChange={(e) => setPlayerOneEvalAlignment(e.target.checked)}
@@ -147,6 +175,13 @@ export default function Settings({
                                     disabled={gameStarted} />
                                 Material score
                             </label>
+                            {playerTwoEvalMaterial && (
+                                <div className="piece-values">
+                                    <label>Pyramid: <input type="number" min="0" value={playerTwoPieceValuePyramid} onChange={makePieceValueHandler(setPlayerTwoPieceValuePyramid)} onBlur={makePieceValueBlurHandler(setPlayerTwoPieceValuePyramid)} disabled={gameStarted} /></label>
+                                    <label>Anubis: <input type="number" min="0" value={playerTwoPieceValueAnubis} onChange={makePieceValueHandler(setPlayerTwoPieceValueAnubis)} onBlur={makePieceValueBlurHandler(setPlayerTwoPieceValueAnubis)} disabled={gameStarted} /></label>
+                                    <label>Pharaoh: <input type="number" min="0" value={playerTwoPieceValuePharaoh} onChange={makePieceValueHandler(setPlayerTwoPieceValuePharaoh)} onBlur={makePieceValueBlurHandler(setPlayerTwoPieceValuePharaoh)} disabled={gameStarted} /></label>
+                                </div>
+                            )}
                             <label className="checkbox-label">
                                 <input type="checkbox" checked={playerTwoEvalAlignment}
                                     onChange={(e) => setPlayerTwoEvalAlignment(e.target.checked)}

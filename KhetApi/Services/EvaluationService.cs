@@ -9,19 +9,14 @@ public class EvaluationService : IEvaluationService
 {
     private int MAX_DEPTH = 0;
 
-    private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
-        { PieceType.Pyramid, 10 },
-        { PieceType.Anubis, 15 },
-        { PieceType.Pharaoh, 200 }
-    };
 
 
     public int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer, int maxDepth, EvaluationConfig evalConfig)
     {
         MAX_DEPTH = maxDepth;
 
-        //if (gameOver)
-        //    return EvaluateTerminalState(depth, winner, rootPlayer);
+        if (gameOver)
+            return EvaluateTerminalState(depth, winner, rootPlayer);
 
         var boardInfo = GetBoardInfo(board);
         //var (rootCount, oppCount, total) = CountPieces(boardInfo.Pieces, rootPlayer);
@@ -31,7 +26,7 @@ public class EvaluationService : IEvaluationService
         int score = 0;
 
         if (evalConfig.UseMaterial)
-            score += EvaluateMaterial(boardInfo.Pieces, rootPlayer);
+            score += EvaluateMaterial(boardInfo.Pieces, rootPlayer, evalConfig.PieceValues);
         //score += EvaluatePhaseSpecific(board, boardInfo.Pieces, rootPlayer, phase);
         if (evalConfig.UsePharaohAlignment)
             score += EvaluatePharaohAlignment(boardInfo.Pieces, rootPlayer);
@@ -39,7 +34,7 @@ public class EvaluationService : IEvaluationService
             score += EvaluateSphinxSupport(board, rootPlayer, boardInfo.Pieces);
         //score += EvaluatePharaohThreats(boardInfo.PharaohPosition, board, rootPlayer);
 
-        score += Random.Shared.Next(-1, 2);
+        score += Random.Shared.Next(-2, 2);
 
         return score;
     }
@@ -73,15 +68,22 @@ public class EvaluationService : IEvaluationService
     }
 
 
-    private int EvaluateMaterial(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    private int EvaluateMaterial(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer, PieceValues pieceValues)
     {
         int score = 0;
 
         foreach (var (piece, _) in pieces)
         {
-            if (!PieceValues.ContainsKey(piece.Type)) continue;
+            int value = piece.Type switch
+            {
+                PieceType.Pyramid => pieceValues.Pyramid,
+                PieceType.Anubis  => pieceValues.Anubis,
+                PieceType.Pharaoh => pieceValues.Pharaoh,
+                _ => 0
+            };
 
-            int value = PieceValues[piece.Type];
+            if (value == 0) continue;
+
             score += piece.Owner == rootPlayer ? value : -value;
         }
 
@@ -419,15 +421,15 @@ public class EvaluationService : IEvaluationService
 
 
 
-    //private int EvaluateTerminalState(int depth, Player? winner, Player rootPlayer)
-    //{
-    //    int bonus = (MAX_DEPTH - depth) * 10;
+    private int EvaluateTerminalState(int depth, Player? winner, Player rootPlayer)
+    {
+        int bonus = (MAX_DEPTH - depth) * 10;
 
-    //    if (winner == rootPlayer)
-    //        return int.MaxValue - bonus;
-    //    else
-    //        return int.MinValue + bonus;
-    //}
+        if (winner == rootPlayer)
+            return int.MaxValue - bonus;
+        else
+            return int.MinValue + bonus;
+    }
 
 
 

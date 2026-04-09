@@ -24,12 +24,22 @@ export default function Board({
     const PLAYER_ONE_EVAL_CONFIG = {
         UseMaterial: settings.playerOneEvalMaterial,
         UsePharaohAlignment: settings.playerOneEvalAlignment,
-        UseSphinxSupport: settings.playerOneEvalSphinx
+        UseSphinxSupport: settings.playerOneEvalSphinx,
+        PieceValues: {
+            Pyramid: settings.playerOnePieceValuePyramid,
+            Anubis:  settings.playerOnePieceValueAnubis,
+            Pharaoh: settings.playerOnePieceValuePharaoh,
+        }
     };
     const PLAYER_TWO_EVAL_CONFIG = {
         UseMaterial: settings.playerTwoEvalMaterial,
         UsePharaohAlignment: settings.playerTwoEvalAlignment,
-        UseSphinxSupport: settings.playerTwoEvalSphinx
+        UseSphinxSupport: settings.playerTwoEvalSphinx,
+        PieceValues: {
+            Pyramid: settings.playerTwoPieceValuePyramid,
+            Anubis:  settings.playerTwoPieceValueAnubis,
+            Pharaoh: settings.playerTwoPieceValuePharaoh,
+        }
     };
 
     const [moves, setMoves] = useState([]);
@@ -240,7 +250,19 @@ const downloadPerTurnStats = () => {
         const totalAvgPlayer2Time =
             allGamesData.reduce((s, g) => s + g.avgPlayer2Time, 0) / allGamesData.length;
 
-        let fileContent = '';
+        const fmtEval = (cfg) => {
+            const mat = cfg.UseMaterial
+                ? `Material: on (Pyramid=${cfg.PieceValues.Pyramid}, Anubis=${cfg.PieceValues.Anubis}, Pharaoh=${cfg.PieceValues.Pharaoh})`
+                : 'Material: off';
+            const align = `PharaohAlignment: ${cfg.UsePharaohAlignment ? 'on' : 'off'}`;
+            const sphinx = `SphinxSupport: ${cfg.UseSphinxSupport ? 'on' : 'off'}`;
+            return `${mat}, ${align}, ${sphinx}`;
+        };
+
+        let fileContent = '=== Agent Configuration ===\n';
+        fileContent += `Player 1 — Depth: ${PLAYER_ONE_AGENT_DEPTH}, ${fmtEval(PLAYER_ONE_EVAL_CONFIG)}\n`;
+        fileContent += `Player 2 — Depth: ${PLAYER_TWO_AGENT_DEPTH}, ${fmtEval(PLAYER_TWO_EVAL_CONFIG)}\n\n`;
+        fileContent += '=== Game Results ===\n';
         allGamesData.forEach(game => {
             fileContent +=
                 `Game ${game.gameNumber}: ` +
