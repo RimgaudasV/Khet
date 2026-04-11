@@ -4,7 +4,6 @@ public class PieceValues
 {
     public int Pyramid { get; set; } = 10;
     public int Anubis  { get; set; } = 15;
-    public int Pharaoh { get; set; } = 200;
 }
 
 public class EvaluationConfig

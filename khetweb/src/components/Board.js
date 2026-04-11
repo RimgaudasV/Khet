@@ -28,7 +28,6 @@ export default function Board({
         PieceValues: {
             Pyramid: settings.playerOnePieceValuePyramid,
             Anubis:  settings.playerOnePieceValueAnubis,
-            Pharaoh: settings.playerOnePieceValuePharaoh,
         }
     };
     const PLAYER_TWO_EVAL_CONFIG = {
@@ -38,7 +37,6 @@ export default function Board({
         PieceValues: {
             Pyramid: settings.playerTwoPieceValuePyramid,
             Anubis:  settings.playerTwoPieceValueAnubis,
-            Pharaoh: settings.playerTwoPieceValuePharaoh,
         }
     };
 
@@ -252,7 +250,7 @@ const downloadPerTurnStats = () => {
 
         const fmtEval = (cfg) => {
             const mat = cfg.UseMaterial
-                ? `Material: on (Pyramid=${cfg.PieceValues.Pyramid}, Anubis=${cfg.PieceValues.Anubis}, Pharaoh=${cfg.PieceValues.Pharaoh})`
+                ? `Material: on (Pyramid=${cfg.PieceValues.Pyramid}, Anubis=${cfg.PieceValues.Anubis})`
                 : 'Material: off';
             const align = `PharaohAlignment: ${cfg.UsePharaohAlignment ? 'on' : 'off'}`;
             const sphinx = `SphinxSupport: ${cfg.UseSphinxSupport ? 'on' : 'off'}`;

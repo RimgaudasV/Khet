@@ -82,15 +82,6 @@ function App() {
         const saved = localStorage.getItem('playerTwoPieceValueAnubis');
         return saved !== null ? parseInt(saved) : 15;
     });
-    const [playerOnePieceValuePharaoh, setPlayerOnePieceValuePharaoh] = useState(() => {
-        const saved = localStorage.getItem('playerOnePieceValuePharaoh');
-        return saved !== null ? parseInt(saved) : 200;
-    });
-    const [playerTwoPieceValuePharaoh, setPlayerTwoPieceValuePharaoh] = useState(() => {
-        const saved = localStorage.getItem('playerTwoPieceValuePharaoh');
-        return saved !== null ? parseInt(saved) : 200;
-    });
-
     useEffect(() => {
         localStorage.setItem('playerOneAgent', JSON.stringify(playerOneAgent));
     }, [playerOneAgent]);
@@ -154,13 +145,6 @@ function App() {
         localStorage.setItem('playerTwoPieceValueAnubis', playerTwoPieceValueAnubis.toString());
     }, [playerTwoPieceValueAnubis]);
     useEffect(() => {
-        localStorage.setItem('playerOnePieceValuePharaoh', playerOnePieceValuePharaoh.toString());
-    }, [playerOnePieceValuePharaoh]);
-    useEffect(() => {
-        localStorage.setItem('playerTwoPieceValuePharaoh', playerTwoPieceValuePharaoh.toString());
-    }, [playerTwoPieceValuePharaoh]);
-
-    useEffect(() => {
         startGame().then(setGame).catch(console.error);
     }, []);
 
@@ -196,8 +180,6 @@ function App() {
         playerTwoPieceValuePyramid,
         playerOnePieceValueAnubis,
         playerTwoPieceValueAnubis,
-        playerOnePieceValuePharaoh,
-        playerTwoPieceValuePharaoh,
     };
 
 return (
@@ -246,10 +228,6 @@ return (
                 setPlayerOnePieceValueAnubis={setPlayerOnePieceValueAnubis}
                 playerTwoPieceValueAnubis={playerTwoPieceValueAnubis}
                 setPlayerTwoPieceValueAnubis={setPlayerTwoPieceValueAnubis}
-                playerOnePieceValuePharaoh={playerOnePieceValuePharaoh}
-                setPlayerOnePieceValuePharaoh={setPlayerOnePieceValuePharaoh}
-                playerTwoPieceValuePharaoh={playerTwoPieceValuePharaoh}
-                setPlayerTwoPieceValuePharaoh={setPlayerTwoPieceValuePharaoh}
             />
 
             <div className="board-section">

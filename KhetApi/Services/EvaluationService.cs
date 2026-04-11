@@ -78,7 +78,6 @@ public class EvaluationService : IEvaluationService
             {
                 PieceType.Pyramid => pieceValues.Pyramid,
                 PieceType.Anubis  => pieceValues.Anubis,
-                PieceType.Pharaoh => pieceValues.Pharaoh,
                 _ => 0
             };
 
