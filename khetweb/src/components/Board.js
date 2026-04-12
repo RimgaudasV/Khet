@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Piece from "./Piece";
 import AgentStats from "./Stats";
 import { rotatePiece, isHighlighted } from "../services/game-service";
@@ -70,6 +70,19 @@ export default function Board({
 
 
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
+
+    const MAX_TURNS = 1500;
+    const turnCountRef = useRef(0);
+    const player1StateHistoryRef = useRef(new Map());
+    const player2StateHistoryRef = useRef(new Map());
+
+    const serializePlayerPieces = (board, player) =>
+        board.cells.map(row =>
+            row.map(cell => {
+                const p = cell.piece;
+                return (p && p.owner === player) ? `${p.type[0]}${p.rotation}` : '_';
+            }).join('')
+        ).join('|');
 
     const LASER_SPEED = bothAgents ? settings.moveDelay : 100;
     const LASER_AFTER_DELAY = bothAgents ? settings.moveDelay : 500;
@@ -287,6 +300,7 @@ const downloadPerTurnStats = () => {
 
         const player1Wins = wins.Player1 || 0;
         const player2Wins = wins.Player2 || 0;
+        const draws = wins.Draw || 0;
 
         const player1WinRate = totalGames > 0
             ? ((player1Wins / totalGames) * 100).toFixed(1)
@@ -296,11 +310,16 @@ const downloadPerTurnStats = () => {
             ? ((player2Wins / totalGames) * 100).toFixed(1)
             : "0.0";
 
+        const drawRate = totalGames > 0
+            ? ((draws / totalGames) * 100).toFixed(1)
+            : "0.0";
+
 
 
         fileContent += `\nSummary (${totalGames} games):\n`;
         fileContent += `Player1 win rate: ${player1WinRate}% (${player1Wins} wins)\n`;
         fileContent += `Player2 win rate: ${player2WinRate}% (${player2Wins} wins)\n`;
+        fileContent += `Draws: ${drawRate}% (${draws} draws)\n`;
         fileContent += `Avg possible moves per turn: ${totalAvgPossibleMoves.toFixed(1)}\n`;
         fileContent += `Avg routes per turn: ${totalAvgRoutes.toFixed(1)}\n`;
         fileContent += `Avg evaluated routes per turn: ${totalAvgEvaluatedRoutes.toFixed(1)}\n`;
@@ -321,6 +340,9 @@ const downloadPerTurnStats = () => {
     };
 
     const resetGame = () => {
+        turnCountRef.current = 0;
+        player1StateHistoryRef.current = new Map();
+        player2StateHistoryRef.current = new Map();
         setGameOver(false);
         setStats({
             player1Times: [],
@@ -446,6 +468,25 @@ const downloadPerTurnStats = () => {
         }, laserDuration);
 
         setTimeout(async () => {
+        turnCountRef.current += 1;
+
+        const justMoved = data.currentPlayer === "Player1" ? "Player2" : "Player1";
+        const historyRef = justMoved === "Player1" ? player1StateHistoryRef : player2StateHistoryRef;
+        const stateKey = serializePlayerPieces(data.board, justMoved);
+        const stateCount = (historyRef.current.get(stateKey) || 0) + 1;
+        historyRef.current.set(stateKey, stateCount);
+
+        if (stateCount >= 4 || turnCountRef.current >= MAX_TURNS) {
+            setCurrentGameWinner("Draw");
+            setTimeout(() => {
+                setGameOver(true);
+                if (gamesCompleted + 1 >= TOTAL_GAMES) {
+                    alert("Game over!");
+                }
+            }, 500);
+            return;
+        }
+
         if (data.gameEnded) {
             setCurrentGameWinner(data.winner);
 
