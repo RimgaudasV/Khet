@@ -66,7 +66,22 @@ function App() {
         const saved = localStorage.getItem('playerTwoEvalSphinx');
         return saved !== null ? JSON.parse(saved) : true;
     });
-
+    const [playerOnePieceValuePyramid, setPlayerOnePieceValuePyramid] = useState(() => {
+        const saved = localStorage.getItem('playerOnePieceValuePyramid');
+        return saved !== null ? parseInt(saved) : 10;
+    });
+    const [playerTwoPieceValuePyramid, setPlayerTwoPieceValuePyramid] = useState(() => {
+        const saved = localStorage.getItem('playerTwoPieceValuePyramid');
+        return saved !== null ? parseInt(saved) : 10;
+    });
+    const [playerOnePieceValueAnubis, setPlayerOnePieceValueAnubis] = useState(() => {
+        const saved = localStorage.getItem('playerOnePieceValueAnubis');
+        return saved !== null ? parseInt(saved) : 15;
+    });
+    const [playerTwoPieceValueAnubis, setPlayerTwoPieceValueAnubis] = useState(() => {
+        const saved = localStorage.getItem('playerTwoPieceValueAnubis');
+        return saved !== null ? parseInt(saved) : 15;
+    });
     useEffect(() => {
         localStorage.setItem('playerOneAgent', JSON.stringify(playerOneAgent));
     }, [playerOneAgent]);
@@ -117,7 +132,18 @@ function App() {
     useEffect(() => {
         localStorage.setItem('playerTwoEvalSphinx', JSON.stringify(playerTwoEvalSphinx));
     }, [playerTwoEvalSphinx]);
-
+    useEffect(() => {
+        localStorage.setItem('playerOnePieceValuePyramid', playerOnePieceValuePyramid.toString());
+    }, [playerOnePieceValuePyramid]);
+    useEffect(() => {
+        localStorage.setItem('playerTwoPieceValuePyramid', playerTwoPieceValuePyramid.toString());
+    }, [playerTwoPieceValuePyramid]);
+    useEffect(() => {
+        localStorage.setItem('playerOnePieceValueAnubis', playerOnePieceValueAnubis.toString());
+    }, [playerOnePieceValueAnubis]);
+    useEffect(() => {
+        localStorage.setItem('playerTwoPieceValueAnubis', playerTwoPieceValueAnubis.toString());
+    }, [playerTwoPieceValueAnubis]);
     useEffect(() => {
         startGame().then(setGame).catch(console.error);
     }, []);
@@ -149,7 +175,11 @@ function App() {
         playerOneEvalAlignment,
         playerTwoEvalAlignment,
         playerOneEvalSphinx,
-        playerTwoEvalSphinx
+        playerTwoEvalSphinx,
+        playerOnePieceValuePyramid,
+        playerTwoPieceValuePyramid,
+        playerOnePieceValueAnubis,
+        playerTwoPieceValueAnubis,
     };
 
 return (
@@ -190,6 +220,14 @@ return (
                 setPlayerOneEvalSphinx={setPlayerOneEvalSphinx}
                 playerTwoEvalSphinx={playerTwoEvalSphinx}
                 setPlayerTwoEvalSphinx={setPlayerTwoEvalSphinx}
+                playerOnePieceValuePyramid={playerOnePieceValuePyramid}
+                setPlayerOnePieceValuePyramid={setPlayerOnePieceValuePyramid}
+                playerTwoPieceValuePyramid={playerTwoPieceValuePyramid}
+                setPlayerTwoPieceValuePyramid={setPlayerTwoPieceValuePyramid}
+                playerOnePieceValueAnubis={playerOnePieceValueAnubis}
+                setPlayerOnePieceValueAnubis={setPlayerOnePieceValueAnubis}
+                playerTwoPieceValueAnubis={playerTwoPieceValueAnubis}
+                setPlayerTwoPieceValueAnubis={setPlayerTwoPieceValueAnubis}
             />
 
             <div className="board-section">

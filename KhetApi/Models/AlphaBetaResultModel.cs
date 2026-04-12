@@ -5,7 +5,7 @@ namespace KhetApi.Models;
 
 public class AlphaBetaResultModel
 {
-    public int Score { get; set; }
+    public double Score { get; set; }
     public Position? MoveFrom { get; set; }
     public Position? MoveTo { get; set; }
     public Rotation? Rotation { get; set; }

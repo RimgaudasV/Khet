@@ -9,37 +9,32 @@ public class EvaluationService : IEvaluationService
 {
     private int MAX_DEPTH = 0;
 
-    private readonly Dictionary<PieceType, int> PieceValues = new Dictionary<PieceType, int>{
-        { PieceType.Pyramid, 10 },
-        { PieceType.Anubis, 15 },
-        { PieceType.Pharaoh, 200 }
-    };
 
 
-    public int EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer, int maxDepth, EvaluationConfig evalConfig)
+    public double EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer, int maxDepth, EvaluationConfig evalConfig)
     {
         MAX_DEPTH = maxDepth;
 
-        //if (gameOver)
-        //    return EvaluateTerminalState(depth, winner, rootPlayer);
+        if (gameOver)
+            return EvaluateTerminalState(depth, winner, rootPlayer);
 
         var boardInfo = GetBoardInfo(board);
         //var (rootCount, oppCount, total) = CountPieces(boardInfo.Pieces, rootPlayer);
 
         //var phase = DetermineGamePhase(total, rootCount, oppCount);
 
-        int score = 0;
+        double score = 0;
 
         if (evalConfig.UseMaterial)
-            score += EvaluateMaterial(boardInfo.Pieces, rootPlayer);
+            score += EvaluateMaterial(boardInfo.Pieces, rootPlayer, evalConfig.PieceValues);
         //score += EvaluatePhaseSpecific(board, boardInfo.Pieces, rootPlayer, phase);
         if (evalConfig.UsePharaohAlignment)
-            score += EvaluatePharaohAlignment(boardInfo.Pieces, rootPlayer);
+            score += EvaluatePharaohAlignment(boardInfo, rootPlayer);
         if (evalConfig.UseSphinxSupport)
             score += EvaluateSphinxSupport(board, rootPlayer, boardInfo.Pieces);
         //score += EvaluatePharaohThreats(boardInfo.PharaohPosition, board, rootPlayer);
 
-        score += Random.Shared.Next(-1, 2);
+        score += Random.Shared.NextDouble();
 
         return score;
     }
@@ -48,7 +43,8 @@ public class EvaluationService : IEvaluationService
     private BoardInfo GetBoardInfo(BoardModel board)
     {
         var pieces = new List<(PieceModel, Position)>();
-        Position? pharaohPosition = null;
+        Position? player1PharaohPos = null;
+        Position? player2PharaohPos = null;
 
         for (int y = 0; y < board.Cells.Length; y++)
         {
@@ -61,27 +57,39 @@ public class EvaluationService : IEvaluationService
                 pieces.Add((piece, pos));
 
                 if (piece.Type == PieceType.Pharaoh)
-                    pharaohPosition = pos;
+                {
+                    if (piece.Owner == Player.Player1)
+                        player1PharaohPos = pos;
+                    else
+                        player2PharaohPos = pos;
+                }
             }
         }
 
         return new BoardInfo
         {
             Pieces = pieces,
-            PharaohPosition = pharaohPosition
+            Player1PharaohPos = player1PharaohPos,
+            Player2PharaohPos = player2PharaohPos
         };
     }
 
 
-    private int EvaluateMaterial(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    private int EvaluateMaterial(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer, PieceValues pieceValues)
     {
         int score = 0;
 
         foreach (var (piece, _) in pieces)
         {
-            if (!PieceValues.ContainsKey(piece.Type)) continue;
+            int value = piece.Type switch
+            {
+                PieceType.Pyramid => pieceValues.Pyramid,
+                PieceType.Anubis  => pieceValues.Anubis,
+                _ => 0
+            };
 
-            int value = PieceValues[piece.Type];
+            if (value == 0) continue;
+
             score += piece.Owner == rootPlayer ? value : -value;
         }
 
@@ -89,63 +97,30 @@ public class EvaluationService : IEvaluationService
     }
 
 
-    private int EvaluatePharaohAlignment(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    private int EvaluatePharaohAlignment(BoardInfo boardInfo, Player rootPlayer)
     {
-        int score = 0;
-
-        Position? rootPharaohPos = null;
-        Position? oppPharaohPos = null;
-
-        foreach (var (piece, pos) in pieces)
-        {
-            if (piece.Type == PieceType.Pharaoh)
-            {
-                if (piece.Owner == rootPlayer)
-                    rootPharaohPos = pos;
-                else
-                    oppPharaohPos = pos;
-            }
-        }
+        var oppPharaohPos = rootPlayer == Player.Player1
+            ? boardInfo.Player2PharaohPos
+            : boardInfo.Player1PharaohPos;
 
         if (oppPharaohPos == null)
             return 0;
 
-        foreach (var (piece, pos) in pieces)
+        int score = 0;
+
+        foreach (var (piece, pos) in boardInfo.Pieces)
         {
-            if (piece.Owner != rootPlayer)
-                continue;
+            if (piece.Owner != rootPlayer) continue;
+            if (piece.Type != PieceType.Pyramid && piece.Type != PieceType.Scarab) continue;
 
-            if (piece.Type != PieceType.Scarab && piece.Type != PieceType.Pyramid)
-                continue;
+            int proximity = Math.Max(Math.Abs(pos.X - oppPharaohPos.X), Math.Abs(pos.Y - oppPharaohPos.Y));
 
-            bool xAligned = pos.X == oppPharaohPos.X ||
-                            pos.X == oppPharaohPos.X - 1 ||
-                            pos.X == oppPharaohPos.X + 1;
-
-            bool yAligned = pos.Y == oppPharaohPos.Y ||
-                            pos.Y == oppPharaohPos.Y - 1 ||
-                            pos.Y == oppPharaohPos.Y + 1;
-
-            int alignmentBonus = 0;
-
-
-            bool close = false;
-            
-            if (xAligned)
+            score += proximity switch
             {
-                close = Math.Abs(pos.Y - oppPharaohPos.Y) <= 4;
-                alignmentBonus = piece.Type == PieceType.Scarab ? 3 : 2;
-            }
-            if (yAligned)
-            {
-                close = Math.Abs(pos.X - oppPharaohPos.X) <= 4;
-                alignmentBonus = piece.Type == PieceType.Scarab ? 3 : 2;
-            }
-
-            if (close)
-                alignmentBonus += 2;
-
-            score += alignmentBonus;
+                <= 1 => piece.Type == PieceType.Scarab ? 5 : 4,
+                <= 4 => piece.Type == PieceType.Scarab ? 3 : 2,
+                _    => 0
+            };
         }
 
         return score;
@@ -419,15 +394,15 @@ public class EvaluationService : IEvaluationService
 
 
 
-    //private int EvaluateTerminalState(int depth, Player? winner, Player rootPlayer)
-    //{
-    //    int bonus = (MAX_DEPTH - depth) * 10;
+    private int EvaluateTerminalState(int depth, Player? winner, Player rootPlayer)
+    {
+        int bonus = (MAX_DEPTH - depth) * 10;
 
-    //    if (winner == rootPlayer)
-    //        return int.MaxValue - bonus;
-    //    else
-    //        return int.MinValue + bonus;
-    //}
+        if (winner == rootPlayer)
+            return int.MaxValue - bonus;
+        else
+            return int.MinValue + bonus;
+    }
 
 
 
