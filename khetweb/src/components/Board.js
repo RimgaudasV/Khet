@@ -270,10 +270,7 @@ const downloadPerTurnStats = () => {
             return `${mat}, ${align}, ${sphinx}`;
         };
 
-        let fileContent = '=== Agent Configuration ===\n';
-        fileContent += `Player 1 — Depth: ${PLAYER_ONE_AGENT_DEPTH}, ${fmtEval(PLAYER_ONE_EVAL_CONFIG)}\n`;
-        fileContent += `Player 2 — Depth: ${PLAYER_TWO_AGENT_DEPTH}, ${fmtEval(PLAYER_TWO_EVAL_CONFIG)}\n\n`;
-        fileContent += '=== Game Results ===\n';
+        let fileContent = '=== Game Results ===\n';
         allGamesData.forEach(game => {
             fileContent +=
                 `Game ${game.gameNumber}: ` +
@@ -316,6 +313,9 @@ const downloadPerTurnStats = () => {
 
 
 
+        fileContent += `\n=== Agent Configuration ===\n`;
+        fileContent += `Player 1 — Depth: ${PLAYER_ONE_AGENT_DEPTH}, ${fmtEval(PLAYER_ONE_EVAL_CONFIG)}\n`;
+        fileContent += `Player 2 — Depth: ${PLAYER_TWO_AGENT_DEPTH}, ${fmtEval(PLAYER_TWO_EVAL_CONFIG)}\n`;
         fileContent += `\nSummary (${totalGames} games):\n`;
         fileContent += `Player1 win rate: ${player1WinRate}% (${player1Wins} wins)\n`;
         fileContent += `Player2 win rate: ${player2WinRate}% (${player2Wins} wins)\n`;
