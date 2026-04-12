@@ -395,7 +395,7 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         ALL_ROUTES_COUNT = 0;
         EVALUATED_ROUTES_COUNT = 0;
 
-        var search = AlphaBetaSearch(request.Board, request.Player, MAX_DEPTH, int.MinValue, int.MaxValue, false, request.Player);
+        var search = AlphaBetaSearch(request.Board, request.Player, MAX_DEPTH, double.NegativeInfinity, double.PositiveInfinity, false, request.Player);
 
         var bestMove = search.BestMove;
         Console.WriteLine($"Chosen: {bestMove.From} -> {bestMove.To}, Rot: {bestMove.Rotation}");
@@ -435,13 +435,13 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         };
     }
 
-    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, int alpha, int beta, bool gameOver, Player rootPlayer, Player? winner = null)
+    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, double alpha, double beta, bool gameOver, Player rootPlayer, Player? winner = null)
     {
         if (depth == 0 || gameOver)
             return new SearchResult { Score = evaluationService.EvaluateBoard(board, gameOver, depth, winner, rootPlayer, MAX_DEPTH, _evalConfig)};
 
         bool maximizing = player == rootPlayer;
-        int bestScore = maximizing ? int.MinValue : int.MaxValue;
+        double bestScore = maximizing ? double.NegativeInfinity : double.PositiveInfinity;
         Move bestMove = new Move();
 
         var allMoves = GenerateAllMoves(board, player);
@@ -474,7 +474,7 @@ public class GameService(IEvaluationService evaluationService) : IGameService
                 winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
             }
 
-            int score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver,
+            double score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver,
                 rootPlayer, winnerPlayer).Score;
 
             UndoMove(board, undoInformation);

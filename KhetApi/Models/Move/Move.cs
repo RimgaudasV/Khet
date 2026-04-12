@@ -23,7 +23,7 @@ public sealed class UndoState
 
 public class SearchResult
 {
-    public int Score;
+    public double Score;
     public Move BestMove;
 }
 
