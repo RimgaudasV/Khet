@@ -72,9 +72,11 @@ export default function Board({
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
 
     const MAX_TURNS = 1500;
+    const LOOP_WINDOW = 10;
+    const LOOP_THRESHOLD = 5;
     const turnCountRef = useRef(0);
-    const player1StateHistoryRef = useRef(new Map());
-    const player2StateHistoryRef = useRef(new Map());
+    const player1StateWindowRef = useRef([]);
+    const player2StateWindowRef = useRef([]);
 
     const serializePlayerPieces = (board, player) =>
         board.cells.map(row =>
@@ -341,8 +343,8 @@ const downloadPerTurnStats = () => {
 
     const resetGame = () => {
         turnCountRef.current = 0;
-        player1StateHistoryRef.current = new Map();
-        player2StateHistoryRef.current = new Map();
+        player1StateWindowRef.current = [];
+        player2StateWindowRef.current = [];
         setGameOver(false);
         setStats({
             player1Times: [],
@@ -471,12 +473,13 @@ const downloadPerTurnStats = () => {
         turnCountRef.current += 1;
 
         const justMoved = data.currentPlayer === "Player1" ? "Player2" : "Player1";
-        const historyRef = justMoved === "Player1" ? player1StateHistoryRef : player2StateHistoryRef;
+        const windowRef = justMoved === "Player1" ? player1StateWindowRef : player2StateWindowRef;
         const stateKey = serializePlayerPieces(data.board, justMoved);
-        const stateCount = (historyRef.current.get(stateKey) || 0) + 1;
-        historyRef.current.set(stateKey, stateCount);
 
-        if (stateCount >= 4 || turnCountRef.current >= MAX_TURNS) {
+        windowRef.current = [...windowRef.current, stateKey].slice(-LOOP_WINDOW);
+        const stateCount = windowRef.current.filter(s => s === stateKey).length;
+
+        if (stateCount >= LOOP_THRESHOLD || turnCountRef.current >= MAX_TURNS) {
             setCurrentGameWinner("Draw");
             setTimeout(() => {
                 setGameOver(true);

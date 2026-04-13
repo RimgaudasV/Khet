@@ -35,7 +35,7 @@ public class EvaluationService : IEvaluationService
         //score += EvaluatePharaohThreats(boardInfo.PharaohPosition, board, rootPlayer);
 
         score += Random.Shared.NextDouble();
-
+        //score += Random.Shared.Next(-1, 5);
         return score;
     }
 

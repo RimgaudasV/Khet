@@ -398,7 +398,6 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         var search = AlphaBetaSearch(request.Board, request.Player, MAX_DEPTH, double.NegativeInfinity, double.PositiveInfinity, false, request.Player);
 
         var bestMove = search.BestMove;
-        Console.WriteLine($"Chosen: {bestMove.From} -> {bestMove.To}, Rot: {bestMove.Rotation}");
 
         ImpactResultModel result = bestMove.Rotation != null
             ? Rotate(new RotationRequest
@@ -415,9 +414,6 @@ public class GameService(IEvaluationService evaluationService) : IGameService
                 CurrentPosition = bestMove.From,
                 NewPosition = bestMove.To
             });
-
-        if (result.DestroyedPiece != null)
-            Console.WriteLine($"Agent ({request.Player}) destroyed {result.DestroyedPiece?.Owner} piece");
 
         return new GameResponse
         {
