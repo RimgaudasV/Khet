@@ -58,12 +58,20 @@ function App() {
         const saved = localStorage.getItem('playerTwoEvalAlignment');
         return saved !== null ? JSON.parse(saved) : true;
     });
-    const [playerOneEvalSphinx, setPlayerOneEvalSphinx] = useState(() => {
-        const saved = localStorage.getItem('playerOneEvalSphinx');
+    const [playerOneEvalSphinxAxis, setPlayerOneEvalSphinxAxis] = useState(() => {
+        const saved = localStorage.getItem('playerOneEvalSphinxAxis');
         return saved !== null ? JSON.parse(saved) : true;
     });
-    const [playerTwoEvalSphinx, setPlayerTwoEvalSphinx] = useState(() => {
-        const saved = localStorage.getItem('playerTwoEvalSphinx');
+    const [playerTwoEvalSphinxAxis, setPlayerTwoEvalSphinxAxis] = useState(() => {
+        const saved = localStorage.getItem('playerTwoEvalSphinxAxis');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [playerOneEvalSphinxDistance, setPlayerOneEvalSphinxDistance] = useState(() => {
+        const saved = localStorage.getItem('playerOneEvalSphinxDistance');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [playerTwoEvalSphinxDistance, setPlayerTwoEvalSphinxDistance] = useState(() => {
+        const saved = localStorage.getItem('playerTwoEvalSphinxDistance');
         return saved !== null ? JSON.parse(saved) : true;
     });
     const [playerOnePieceValuePyramid, setPlayerOnePieceValuePyramid] = useState(() => {
@@ -127,11 +135,17 @@ function App() {
         localStorage.setItem('playerTwoEvalAlignment', JSON.stringify(playerTwoEvalAlignment));
     }, [playerTwoEvalAlignment]);
     useEffect(() => {
-        localStorage.setItem('playerOneEvalSphinx', JSON.stringify(playerOneEvalSphinx));
-    }, [playerOneEvalSphinx]);
+        localStorage.setItem('playerOneEvalSphinxAxis', JSON.stringify(playerOneEvalSphinxAxis));
+    }, [playerOneEvalSphinxAxis]);
     useEffect(() => {
-        localStorage.setItem('playerTwoEvalSphinx', JSON.stringify(playerTwoEvalSphinx));
-    }, [playerTwoEvalSphinx]);
+        localStorage.setItem('playerTwoEvalSphinxAxis', JSON.stringify(playerTwoEvalSphinxAxis));
+    }, [playerTwoEvalSphinxAxis]);
+    useEffect(() => {
+        localStorage.setItem('playerOneEvalSphinxDistance', JSON.stringify(playerOneEvalSphinxDistance));
+    }, [playerOneEvalSphinxDistance]);
+    useEffect(() => {
+        localStorage.setItem('playerTwoEvalSphinxDistance', JSON.stringify(playerTwoEvalSphinxDistance));
+    }, [playerTwoEvalSphinxDistance]);
     useEffect(() => {
         localStorage.setItem('playerOnePieceValuePyramid', playerOnePieceValuePyramid.toString());
     }, [playerOnePieceValuePyramid]);
@@ -174,8 +188,10 @@ function App() {
         playerTwoEvalMaterial,
         playerOneEvalAlignment,
         playerTwoEvalAlignment,
-        playerOneEvalSphinx,
-        playerTwoEvalSphinx,
+        playerOneEvalSphinxAxis,
+        playerTwoEvalSphinxAxis,
+        playerOneEvalSphinxDistance,
+        playerTwoEvalSphinxDistance,
         playerOnePieceValuePyramid,
         playerTwoPieceValuePyramid,
         playerOnePieceValueAnubis,
@@ -216,10 +232,14 @@ return (
                 setPlayerOneEvalAlignment={setPlayerOneEvalAlignment}
                 playerTwoEvalAlignment={playerTwoEvalAlignment}
                 setPlayerTwoEvalAlignment={setPlayerTwoEvalAlignment}
-                playerOneEvalSphinx={playerOneEvalSphinx}
-                setPlayerOneEvalSphinx={setPlayerOneEvalSphinx}
-                playerTwoEvalSphinx={playerTwoEvalSphinx}
-                setPlayerTwoEvalSphinx={setPlayerTwoEvalSphinx}
+                playerOneEvalSphinxAxis={playerOneEvalSphinxAxis}
+                setPlayerOneEvalSphinxAxis={setPlayerOneEvalSphinxAxis}
+                playerTwoEvalSphinxAxis={playerTwoEvalSphinxAxis}
+                setPlayerTwoEvalSphinxAxis={setPlayerTwoEvalSphinxAxis}
+                playerOneEvalSphinxDistance={playerOneEvalSphinxDistance}
+                setPlayerOneEvalSphinxDistance={setPlayerOneEvalSphinxDistance}
+                playerTwoEvalSphinxDistance={playerTwoEvalSphinxDistance}
+                setPlayerTwoEvalSphinxDistance={setPlayerTwoEvalSphinxDistance}
                 playerOnePieceValuePyramid={playerOnePieceValuePyramid}
                 setPlayerOnePieceValuePyramid={setPlayerOnePieceValuePyramid}
                 playerTwoPieceValuePyramid={playerTwoPieceValuePyramid}

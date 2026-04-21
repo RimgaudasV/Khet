@@ -31,10 +31,14 @@ export default function Settings({
     setPlayerOneEvalAlignment,
     playerTwoEvalAlignment,
     setPlayerTwoEvalAlignment,
-    playerOneEvalSphinx,
-    setPlayerOneEvalSphinx,
-    playerTwoEvalSphinx,
-    setPlayerTwoEvalSphinx,
+    playerOneEvalSphinxAxis,
+    setPlayerOneEvalSphinxAxis,
+    playerTwoEvalSphinxAxis,
+    setPlayerTwoEvalSphinxAxis,
+    playerOneEvalSphinxDistance,
+    setPlayerOneEvalSphinxDistance,
+    playerTwoEvalSphinxDistance,
+    setPlayerTwoEvalSphinxDistance,
     playerOnePieceValuePyramid,
     setPlayerOnePieceValuePyramid,
     playerTwoPieceValuePyramid,
@@ -115,10 +119,16 @@ export default function Settings({
                                 Pharaoh alignment
                             </label>
                             <label className="checkbox-label">
-                                <input type="checkbox" checked={playerOneEvalSphinx}
-                                    onChange={(e) => setPlayerOneEvalSphinx(e.target.checked)}
+                                <input type="checkbox" checked={playerOneEvalSphinxAxis}
+                                    onChange={(e) => setPlayerOneEvalSphinxAxis(e.target.checked)}
                                     disabled={gameStarted} />
-                                Sphinx support
+                                Sphinx axis presence
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={playerOneEvalSphinxDistance}
+                                    onChange={(e) => setPlayerOneEvalSphinxDistance(e.target.checked)}
+                                    disabled={gameStarted} />
+                                Sphinx distance
                             </label>
                         </div>
                     </div>
@@ -183,10 +193,16 @@ export default function Settings({
                                 Pharaoh alignment
                             </label>
                             <label className="checkbox-label">
-                                <input type="checkbox" checked={playerTwoEvalSphinx}
-                                    onChange={(e) => setPlayerTwoEvalSphinx(e.target.checked)}
+                                <input type="checkbox" checked={playerTwoEvalSphinxAxis}
+                                    onChange={(e) => setPlayerTwoEvalSphinxAxis(e.target.checked)}
                                     disabled={gameStarted} />
-                                Sphinx support
+                                Sphinx axis presence
+                            </label>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={playerTwoEvalSphinxDistance}
+                                    onChange={(e) => setPlayerTwoEvalSphinxDistance(e.target.checked)}
+                                    disabled={gameStarted} />
+                                Sphinx distance
                             </label>
                         </div>
                     </div>

@@ -30,8 +30,10 @@ public class EvaluationService : IEvaluationService
         //score += EvaluatePhaseSpecific(board, boardInfo.Pieces, rootPlayer, phase);
         if (evalConfig.UsePharaohAlignment)
             score += EvaluatePharaohAlignment(boardInfo, rootPlayer);
-        if (evalConfig.UseSphinxSupport)
-            score += EvaluateSphinxSupport(board, rootPlayer, boardInfo.Pieces);
+        if (evalConfig.UseSphinxAxisPresence)
+            score += EvaluateSphinxAxisPresence(board, rootPlayer, boardInfo.Pieces);
+        if (evalConfig.UseSphinxDistance)
+            score += EvaluateSphinxDistance(board, rootPlayer, boardInfo.Pieces);
         //score += EvaluatePharaohThreats(boardInfo.PharaohPosition, board, rootPlayer);
 
         score += Random.Shared.NextDouble();
@@ -127,72 +129,74 @@ public class EvaluationService : IEvaluationService
     }
 
 
-    private int EvaluateSphinxSupport(BoardModel board, Player rootPlayer, List<(PieceModel piece, Position pos)> pieces)
+    private Position? FindFirstSupporterOnAxis(BoardModel board, Player rootPlayer, Axis axis)
     {
-        int XaxisSupportScore = 0,
-            YaxisSupportScore = 0;
-
-        foreach (var (piece, pos) in pieces)
-        {
-            if (piece.Type == PieceType.Pharaoh && piece.Owner != rootPlayer)
-            {
-                XaxisSupportScore = EvaluateAxisSupport(pos.X, board, Axis.X, rootPlayer);
-                YaxisSupportScore = EvaluateAxisSupport(pos.Y, board, Axis.Y, rootPlayer);
-                break;
-            }
-        }
-
-        return XaxisSupportScore + YaxisSupportScore;
-    }
-
-
-
-    private int EvaluateAxisSupport(int enemyCoord, BoardModel board, Axis axis, Player rootPlayer)
-    {
-        Position sphinxPos = rootPlayer == Player.Player1? new Position(9, 7) : new Position(0, 0);
-        var stepDirection = rootPlayer == Player.Player1 ? -1 : 1;
-
-        var step = 1;
-        int score = 0;
-
+        Position sphinxPos = rootPlayer == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
+        int stepDirection = rootPlayer == Player.Player1 ? -1 : 1;
+        int step = 1;
 
         while (true)
         {
-            var currentPosition = new Position(
+            var pos = new Position(
                 axis == Axis.X ? sphinxPos.X + stepDirection * step : sphinxPos.X,
                 axis == Axis.Y ? sphinxPos.Y + stepDirection * step : sphinxPos.Y
             );
 
-            if(!board.IsInsideBoard(currentPosition))
-            {
-                break;
-            }
+            if (!board.IsInsideBoard(pos)) break;
 
-            var piece = board.GetPieceAt(currentPosition);
+            var piece = board.GetPieceAt(pos);
 
-            if (piece == null)
-            {
-                step++;
-                continue;
-            }
-
-            if (piece.Owner != rootPlayer)
-                break;
-
-            if (piece.Type == PieceType.Pyramid || piece.Type == PieceType.Scarab) 
-            {
-                var pressureScore = AxisPressure(
-                    axis == Axis.X ? currentPosition.X : currentPosition.Y,
-                    enemyCoord
-                );
-
-                score = 2 + pressureScore - TooClosePenalty(axis, sphinxPos, currentPosition);
-                break;
-            }
+            if (piece == null) { step++; continue; }
+            if (piece.Owner != rootPlayer) break;
+            if (piece.Type == PieceType.Pyramid || piece.Type == PieceType.Scarab)
+                return pos;
 
             step++;
-
         }
+
+        return null;
+    }
+
+
+    private int EvaluateSphinxAxisPresence(BoardModel board, Player rootPlayer, List<(PieceModel piece, Position pos)> pieces)
+    {
+        Position? enemyPharaohPos = null;
+        foreach (var (piece, pos) in pieces)
+        {
+            if (piece.Type == PieceType.Pharaoh && piece.Owner != rootPlayer)
+            {
+                enemyPharaohPos = pos;
+                break;
+            }
+        }
+        if (enemyPharaohPos == null) return 0;
+
+        int score = 0;
+
+        var xSupporter = FindFirstSupporterOnAxis(board, rootPlayer, Axis.X);
+        if (xSupporter != null)
+            score += 2 + AxisPressure(xSupporter.X, enemyPharaohPos.X);
+
+        var ySupporter = FindFirstSupporterOnAxis(board, rootPlayer, Axis.Y);
+        if (ySupporter != null)
+            score += 2 + AxisPressure(ySupporter.Y, enemyPharaohPos.Y);
+
+        return score;
+    }
+
+
+    private int EvaluateSphinxDistance(BoardModel board, Player rootPlayer, List<(PieceModel piece, Position pos)> pieces)
+    {
+        Position sphinxPos = rootPlayer == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
+        int score = 0;
+
+        var xSupporter = FindFirstSupporterOnAxis(board, rootPlayer, Axis.X);
+        if (xSupporter != null)
+            score -= TooClosePenalty(Axis.X, sphinxPos, xSupporter);
+
+        var ySupporter = FindFirstSupporterOnAxis(board, rootPlayer, Axis.Y);
+        if (ySupporter != null)
+            score -= TooClosePenalty(Axis.Y, sphinxPos, ySupporter);
 
         return score;
     }

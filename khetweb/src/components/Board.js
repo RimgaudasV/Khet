@@ -24,7 +24,8 @@ export default function Board({
     const PLAYER_ONE_EVAL_CONFIG = {
         UseMaterial: settings.playerOneEvalMaterial,
         UsePharaohAlignment: settings.playerOneEvalAlignment,
-        UseSphinxSupport: settings.playerOneEvalSphinx,
+        UseSphinxAxisPresence: settings.playerOneEvalSphinxAxis,
+        UseSphinxDistance: settings.playerOneEvalSphinxDistance,
         PieceValues: {
             Pyramid: settings.playerOnePieceValuePyramid,
             Anubis:  settings.playerOnePieceValueAnubis,
@@ -33,7 +34,8 @@ export default function Board({
     const PLAYER_TWO_EVAL_CONFIG = {
         UseMaterial: settings.playerTwoEvalMaterial,
         UsePharaohAlignment: settings.playerTwoEvalAlignment,
-        UseSphinxSupport: settings.playerTwoEvalSphinx,
+        UseSphinxAxisPresence: settings.playerTwoEvalSphinxAxis,
+        UseSphinxDistance: settings.playerTwoEvalSphinxDistance,
         PieceValues: {
             Pyramid: settings.playerTwoPieceValuePyramid,
             Anubis:  settings.playerTwoPieceValueAnubis,
