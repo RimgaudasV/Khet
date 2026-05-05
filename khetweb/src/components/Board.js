@@ -383,12 +383,8 @@ const downloadPerTurnStats = () => {
             setGamesCompleted(newGamesCompleted);
             
             if (newGamesCompleted < TOTAL_GAMES) {
-                setTimeout(() => {
-                    resetGame();
-                    setTimeout(() => {
-                        handleStartGame();
-                    }, 100);
-                }, 500);
+                resetGame();
+                handleStartGame();
             } else {
                 setAllGamesFinished(true);
                 console.log(`All ${TOTAL_GAMES} games completed!`);
@@ -483,24 +479,22 @@ const downloadPerTurnStats = () => {
 
         if (stateCount >= LOOP_THRESHOLD || turnCountRef.current >= MAX_TURNS) {
             setCurrentGameWinner("Draw");
-            setTimeout(() => {
-                setGameOver(true);
-                if (gamesCompleted + 1 >= TOTAL_GAMES) {
-                    alert("Game over!");
-                }
-            }, 500);
+
+            setGameOver(true);
+            if (gamesCompleted + 1 >= TOTAL_GAMES) {
+                alert("Game over!");
+            }
             return;
         }
 
         if (data.gameEnded) {
             setCurrentGameWinner(data.winner);
 
-            setTimeout(() => {
-                setGameOver(true);
-                if (gamesCompleted + 1 >= TOTAL_GAMES) {
-                    alert("Game over!");
-                }
-            }, 500);
+            setGameOver(true);
+            if (gamesCompleted + 1 >= TOTAL_GAMES) {
+                alert("Game over!");
+            }
+            
             return;
         }
 
