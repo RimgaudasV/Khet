@@ -7,16 +7,10 @@ namespace KhetApi.Services;
 
 public class EvaluationService : IEvaluationService
 {
-    private int MAX_DEPTH = 0;
-
-
-
     public double EvaluateBoard(BoardModel board, bool gameOver, int depth, Player? winner, Player rootPlayer, int maxDepth, EvaluationConfig evalConfig)
     {
-        MAX_DEPTH = maxDepth;
-
         if (gameOver)
-            return EvaluateTerminalState(depth, winner, rootPlayer);
+            return EvaluateTerminalState(depth, winner, rootPlayer, maxDepth);
 
         var boardInfo = GetBoardInfo(board);
         //var (rootCount, oppCount, total) = CountPieces(boardInfo.Pieces, rootPlayer);
@@ -398,9 +392,9 @@ public class EvaluationService : IEvaluationService
 
 
 
-    private int EvaluateTerminalState(int depth, Player? winner, Player rootPlayer)
+    private int EvaluateTerminalState(int depth, Player? winner, Player rootPlayer, int maxDepth)
     {
-        int bonus = (MAX_DEPTH - depth) * 10;
+        int bonus = (maxDepth - depth) * 10;
 
         if (winner == rootPlayer)
             return int.MaxValue - bonus;
