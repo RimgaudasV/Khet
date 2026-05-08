@@ -88,6 +88,25 @@ export default function Board({
             }).join('')
         ).join('|');
 
+    const detectLoop = (board, currentPlayer) => {
+        const justMoved = currentPlayer === "Player1" ? "Player2" : "Player1";
+        const windowRef = justMoved === "Player1" ? player1StateWindowRef : player2StateWindowRef;
+        const stateKey = serializePlayerPieces(board, justMoved);
+
+        windowRef.current = [...windowRef.current, stateKey].slice(-LOOP_WINDOW);
+        const stateCount = windowRef.current.filter(s => s === stateKey).length;
+
+        if (stateCount >= LOOP_THRESHOLD || turnCountRef.current >= MAX_TURNS) {
+            setCurrentGameWinner("Draw");
+            setGameOver(true);
+            if (gamesCompleted + 1 >= TOTAL_GAMES) {
+                alert("Game over!");
+            }
+            return true;
+        }
+        return false;
+    };
+
     const LASER_SPEED = bothAgents ? settings.moveDelay : 100;
     const LASER_AFTER_DELAY = bothAgents ? settings.moveDelay : 500;
     const EXPLOSION_DURATION = bothAgents ? 100 : 300;
@@ -470,22 +489,7 @@ const downloadPerTurnStats = () => {
         setTimeout(async () => {
         turnCountRef.current += 1;
 
-        const justMoved = data.currentPlayer === "Player1" ? "Player2" : "Player1";
-        const windowRef = justMoved === "Player1" ? player1StateWindowRef : player2StateWindowRef;
-        const stateKey = serializePlayerPieces(data.board, justMoved);
-
-        windowRef.current = [...windowRef.current, stateKey].slice(-LOOP_WINDOW);
-        const stateCount = windowRef.current.filter(s => s === stateKey).length;
-
-        if (stateCount >= LOOP_THRESHOLD || turnCountRef.current >= MAX_TURNS) {
-            setCurrentGameWinner("Draw");
-
-            setGameOver(true);
-            if (gamesCompleted + 1 >= TOTAL_GAMES) {
-                alert("Game over!");
-            }
-            return;
-        }
+        if (detectLoop(data.board, data.currentPlayer)) return;
 
         if (data.gameEnded) {
             setCurrentGameWinner(data.winner);
