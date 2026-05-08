@@ -1,0 +1,168 @@
+%%%%%
+%%%%%  Naudokite LUALATEX, ne LATEX.
+%%%%%
+%%%%
+\documentclass[]{VUMIFTemplateClass}
+
+\usepackage{indentfirst}
+\usepackage{amsmath, amsthm, amssymb, amsfonts}
+\usepackage{mathtools}
+\usepackage{physics}
+\usepackage{graphicx}
+\usepackage{verbatim}
+\usepackage[hidelinks]{hyperref}
+\usepackage{color,algorithm,algorithmic}
+\usepackage[nottoc]{tocbibind}
+\usepackage{tocloft}
+
+\usepackage{titlesec}
+\newcommand{\sectionbreak}{\clearpage}
+
+\makeatletter
+\renewcommand{\fnum@algorithm}{\thealgorithm}
+\makeatother
+\renewcommand\thealgorithm{\arabic{algorithm} algoritmas}
+
+\usepackage{biblatex}
+\bibliography{bibliografija}
+%% norint pakeisti bibliografijos šaltinių numeravimą (skaitiniu arba raidiniu), pakeitimus atlikti VUMIFTemplateClass.cls 150 eilutėje
+
+
+\newcommand{\EE}{\mathbb{E}\,} 
+\newcommand{\ee}{{\mathrm e}}
+\newcommand{\RR}{\mathbb{R}}
+%Euristinės funkcijos formavimas stalo žaidimo ,,Khet" Alpha-Beta paieškos agentui
+
+%Alpha-Beta paieškos agento euristinių funkcijų optimizavimas stalo žaidimui ,,Khet"
+%Optimization of Heuristic Functions for an Alpha-Beta Agent in the Board Game Khet
+
+
+
+%%Euristines funkcijos paieska alpha beta paieskos agentui stalo žaidime ,,Khet"
+\studijuprograma{Programų sistemų}
+\darbotipas{Bakalauro baigiamasis darbas} 
+\darbopavadinimas{Alpha-Beta paieškos agento euristinių funkcijų optimizavimas stalo žaidimui Khet}
+\darbopavadinimasantras{Optimization of Heuristic Functions for an Alpha-Beta Agent in the Board Game Khet}
+\autorius{Rimgaudas Vėjelis}
+
+
+
+
+\vadovas{dr. Rokas Astrauskas}
+\recenzentas{Virginijus Marcinkevičius} 
+
+\begin{document}
+\selectlanguage{lithuanian}
+
+\onehalfspacing
+\input{titulinis}
+
+\selectlanguage{lithuanian}
+
+
+
+
+\sectionnonum{Santrauka}
+
+Darbo santrauka.\\
+
+\textbf{Raktiniai žodžiai:} čia surašomi su darbu susiję raktiniai žodžiai, \textit{\textbf{minimalus raktinių žodžių kiekis - 3}}, tačiau jų gali būti ir daugiau.
+
+\sectionnonum{Summary}
+
+Summary in english.\\
+
+\textbf{Keywords:} work related keywords, with a \textit{\textbf{minimum of 3 keywords}}, but can be more.
+
+
+\singlespacing
+
+
+%Turinys
+\tableofcontents
+\onehalfspacing
+
+
+
+\sectionnonum{Įvadas}
+
+
+Strateginiai stalo žaidimai yra vetinami kaip veikla, ne tik laisvalaikiui praleisti, bet ir lavinanti žmogaus protą. Ttrateginiai žaidimai, tokie kaip šachmatai, teigiamai veikia analitinį mąstymą, gebėjimą planuoti veiksmus bei spręsti sudėtingas problemas. Tyrimai rodo, kad vaikai žaidžiantys šachmatais, daug geriau atliko tiek metakognityvinių gebėjimų, tiek matematinių problemų sprendimo užduotis - stats \cite{KYM12}.  Dėl savo savybių strateginiai stalo žaidimai tapo svarbia dirbtinio intelekto tyrimų sritimi. Aiškios taisyklės, struktūrizuota aplinka ir apibrėžti tikslai suteikia tinkamą terpę kurti bei vertinti dirbtinio intelekto agentus, gebančius priimti sprendimus sudėtingose situacijose\cite{GVR04}
+
+ Pirmasis reikšmingas bandymas sukurti dirbtinio intelekto agentą, gebantį žaisti strateginį žaidimą, buvo 1948 metais. Alano Turingo sukurtas algoritmas „Turochamp“ \cite{CPW21} neprilygo patyrusiems šachmatų žaidėjams, bet tai davė puikią pradžia tolimesniam algoritmų vystymui. Esminis lūžis įvyko 1997 m., kai IBM sukurtas agentas „Deep Blue“ įveikė tuometinį pasaulio čempioną G. Kasparovą. Ši pergalė buvo pasiekta naudojant alfa–beta paieškos algoritmą, kuris kartu su galinga technine įranga leido „Deep Blue“ apskaičiuoti 200 milijonų ėjimų per sekundę. \cite{CHH02}
+
+Tobulėjant algoritmams, atsirado tokie varikliai kaip „Stockfish“, kurie dešimtmečius dominavo šachmatų pasaulyje, naudodami itin optimizuotą alfa-beta paiešką \cite{}. Dar vieną revoliuciją sukėlė „Google DeepMind“ sukurtas „AlphaZero“. \cite{Sil18}. Priešingai nei klasikiniai algoritmai, „AlphaZero“ nenaudoja alfa-beta genėjimo, o remiasi Monte Karlo medžio paieška (angl. Monte Carlo Tree Search) ir giliaisiais neuroniniais tinklais. Šie algoritmai leidžia agentui pačiam išmokti žaidimo strategiją, žaidžiant prieš save. Nors šie metodai skiriasi, jie visi sprendžia tą pačią problemą – kaip efektyviai pasirinkti geriausią ėjimą iš milžiniško galimų būsenų medžio.
+
+Taigi, šachmatai yra gerai išvystyti ir detaliai aprašyti mokslinėje literatūroje, o jų tobulinimą skatina ne tik teorinis susidomėjimas, bet ir platus praktinis pritaikymas. Šachmatais reguliariai žaidžia milijonai žmonių visame pasaulyje - ,,Chess.com" 2023 metų duomenimis per mėnesį jų platformoje šachmatais sužaista 1,05 milijardo partijų, iš kurių net 480 milijonų buvo prieš kompiuterį. \cite{ChessComStats}. Tuo tarpu kiti strateginiai žaidimai nėra tokie popūliarūs ir jų paieškos algoritmai nėra taip aiškiai išanalizuoti. Vienas tokių yra ir ,,Khet 2.0", dar žinomas, kaip lazeriniai šachmatai. Šiame žaidime sprendimų priėmimą lemia ne tik figūrėlių pozicijos, bet ir jų orientacija bei lazerio spindulio trajektorija. Šis žaidimas pasižymi aukštu šakojimosi faktoriumi – vidutiniškai apie 68  galimi ėjimai vienoje būsenoje \cite[18~p.]{Nij09}, o tai gerokai viršija šachmatų vidurkį (apie 35) \cite[10~p.]{Lai15}. Tai apsunkina efektyvų geriausio ėjimo parinkimą net ir taikant alfa–beta genėjimą. Todėl aktualu ištirti su kokia euristine funkcija agentas priema geriausius sprendimus ,,Khet č.0" žaidime.
+
+
+Šio darbo tikslas – eksperimentiškai įvertinti skirtingų euristinių funkcijų įtaką „Khet 2.0“ žaidimo algoritmo žaidimo kokybei ir skaičiavimo efektyvumui, taikant alfa-beta paieškos metodą.
+
+Darbo uždaviniai:
+\begin{enumerate}
+\item Atlikti mokslinės literatūros apžvalgą apie paieškos algoritmus bei euristinio vertinimo metodus strateginiuose stalo žaidimuose.
+\item Įgyvendinti stalo žaidimo „Khet 2.0“ modelį ir agentą, naudojantį „MiniMax“ paiešką su alfa–beta genėjimo optimizacija.
+\item Sudaryti ir realizuoti skirtingas euristines vertinimo funkcijas bei nustatyti optimalius jų svorius agentų tarpusavio dvikovose.
+\item Eksperimentiškai įvertinti algoritmo skaičiavimo efektyvumą, matuojant sprendimo priėmimo laiką ir patikrintų būsenų skaičių, bei žaidimo kokybę, vertinant laimėtų partijų santykį.
+\item Suformuluoti darbo išvadas, apibendrinant gautus teorinės analizės ir eksperimentinio tyrimo rezultatus.
+\end{enumerate}
+
+
+
+
+\section{Žaidimas "Khet"}
+
+
+\section{Architektūra}
+
+\section{Alpha-Beta paieška}
+
+\section{Literatūros analizė žaidimo agentui}
+\subsection{Šachmatų euristikos}
+\subsection{Ėjimų rikiavimas}
+\subsection{Paralelinė paieška}
+
+\section{Agento įgyvendinimas}
+\subsection{Technologinis sprendimas}
+\subsection{Bazinis agentas}
+\subsubsection{Ėjimų rikiavimas}
+\subsubsection{,,Jaunesniųjų brolių laukimo principas"}
+cia ir apie rikiavima
+\subsubsection{Figūrėlių svrorių euristika}
+
+\subsection{Euristinės funkcijos formavimas}
+
+
+\subsection{Agento apžvalga}
+Čia palyginama bazinis agentas su galutiniu, taip pat patiekiami rodikliai - laikas , pruning, win rate ir pns. Nurodomi galimi patobulinimai
+
+
+
+
+\sectionnonum{Rezultatai ir išvados}
+Detaliau, kas turi būti parašyta šiame skyriuje, rasite atitinkamos programos metodiniuose reikalavimuose. 
+
+\printbibliography[title = {Literatūra ir šaltiniai}]
+
+
+\appendix
+\renewcommand{\thesection}{\arabic{section} priedas.}
+
+\section{\phantom{Priedas} Citavimo pavyzdžiai}
+Dokumente - \textit{bibliografija.bib}, reikia sudėti visus cituojamus šaltinius ir panaudojus funkciją \textit{\{\textbackslash cite\{cituojamo objekto pavadinimas\}\}} atitinkamas šaltinis bus pridėtas prie literatūros šaltinių sąrašo.
+
+
+\textit{bibliografija.bib} galima rasti kelių dažniausiai cituojamų šaltinių tipų pavyzdžius:
+\begin{itemize}
+    \item internetiniai puslapiai (\textit{@online}) \cite{PvzInternetinisPuslapis},
+    \item duomenų rinkiniai (\textit{@dataset}) \cite{dataset}
+    \item straipsniai (\textit{@article}) \cite{PvzStraipsnLt, PvzStraipsnEn}, 
+    \item straipsniai iš konferencijos (\textit{@inproceedings}) \cite{PvzKonfLt, PvzKonfEn}, 
+    \item knygos (\textit{@book}) \cite{PvzKnygLt, PvzKnygEn}, 
+    \item baigiamieji darbai (\textit{@thesis arba mastersthesis/phdthesis} \cite{PvzMagistrLt, PvzPhdEn})
+    \item elektroninės publikacijos (\textit{@misc}) \cite{PvzElPubLt, PvzElPubEn}
+\end{itemize}
+
+Taip pat yra pateikti pavyzdžiai - ChatGPT citavimui, tiek bendrai\cite{chatgpt_bendrai}, tiek konkrečiam pokalbiui\cite{chatgpt_pokalbis}.
+
+\end{document}
