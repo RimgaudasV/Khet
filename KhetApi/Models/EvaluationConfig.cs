@@ -10,6 +10,7 @@ public class EvaluationConfig
 {
     public bool UseMaterial         { get; set; } = true;
     public bool UsePharaohAlignment { get; set; } = true;
-    public bool UseSphinxSupport    { get; set; } = true;
+    public bool UseSphinxAxisPresence { get; set; } = true;
+    public bool UseSphinxDistance     { get; set; } = true;
     public PieceValues PieceValues  { get; set; } = new();
 }

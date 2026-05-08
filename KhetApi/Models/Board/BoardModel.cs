@@ -32,6 +32,37 @@ public class BoardModel
         InitiateBoard();
     }
 
+    private BoardModel(bool _)
+    {
+        Cells = new Cell[Height][];
+        for (int y = 0; y < Height; y++)
+        {
+            Cells[y] = new Cell[Width];
+            for (int x = 0; x < Width; x++)
+                Cells[y][x] = new Cell();
+        }
+    }
+
+    public BoardModel Clone()
+    {
+        var clone = new BoardModel(false);
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+            {
+                var src = Cells[y][x];
+                clone.Cells[y][x].IsDisabled = src.IsDisabled;
+                clone.Cells[y][x].DisabledFor = src.DisabledFor;
+                clone.Cells[y][x].Piece = src.Piece is null ? null : new PieceModel
+                {
+                    Type = src.Piece.Type,
+                    Owner = src.Piece.Owner,
+                    Rotation = src.Piece.Rotation,
+                    IsMovable = src.Piece.IsMovable
+                };
+            }
+        return clone;
+    }
+
 
     private void InitiateBoard()
     {

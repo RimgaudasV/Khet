@@ -24,7 +24,8 @@ export default function Board({
     const PLAYER_ONE_EVAL_CONFIG = {
         UseMaterial: settings.playerOneEvalMaterial,
         UsePharaohAlignment: settings.playerOneEvalAlignment,
-        UseSphinxSupport: settings.playerOneEvalSphinx,
+        UseSphinxAxisPresence: settings.playerOneEvalSphinxAxis,
+        UseSphinxDistance: settings.playerOneEvalSphinxDistance,
         PieceValues: {
             Pyramid: settings.playerOnePieceValuePyramid,
             Anubis:  settings.playerOnePieceValueAnubis,
@@ -33,7 +34,8 @@ export default function Board({
     const PLAYER_TWO_EVAL_CONFIG = {
         UseMaterial: settings.playerTwoEvalMaterial,
         UsePharaohAlignment: settings.playerTwoEvalAlignment,
-        UseSphinxSupport: settings.playerTwoEvalSphinx,
+        UseSphinxAxisPresence: settings.playerTwoEvalSphinxAxis,
+        UseSphinxDistance: settings.playerTwoEvalSphinxDistance,
         PieceValues: {
             Pyramid: settings.playerTwoPieceValuePyramid,
             Anubis:  settings.playerTwoPieceValueAnubis,
@@ -72,9 +74,11 @@ export default function Board({
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
 
     const MAX_TURNS = 1500;
+    const LOOP_WINDOW = 10;
+    const LOOP_THRESHOLD = 5;
     const turnCountRef = useRef(0);
-    const player1StateHistoryRef = useRef(new Map());
-    const player2StateHistoryRef = useRef(new Map());
+    const player1StateWindowRef = useRef([]);
+    const player2StateWindowRef = useRef([]);
 
     const serializePlayerPieces = (board, player) =>
         board.cells.map(row =>
@@ -83,6 +87,25 @@ export default function Board({
                 return (p && p.owner === player) ? `${p.type[0]}${p.rotation}` : '_';
             }).join('')
         ).join('|');
+
+    const detectLoop = (board, currentPlayer) => {
+        const justMoved = currentPlayer === "Player1" ? "Player2" : "Player1";
+        const windowRef = justMoved === "Player1" ? player1StateWindowRef : player2StateWindowRef;
+        const stateKey = serializePlayerPieces(board, justMoved);
+
+        windowRef.current = [...windowRef.current, stateKey].slice(-LOOP_WINDOW);
+        const stateCount = windowRef.current.filter(s => s === stateKey).length;
+
+        if (stateCount >= LOOP_THRESHOLD || turnCountRef.current >= MAX_TURNS) {
+            setCurrentGameWinner("Draw");
+            setGameOver(true);
+            if (gamesCompleted + 1 >= TOTAL_GAMES) {
+                alert("Game over!");
+            }
+            return true;
+        }
+        return false;
+    };
 
     const LASER_SPEED = bothAgents ? settings.moveDelay : 100;
     const LASER_AFTER_DELAY = bothAgents ? settings.moveDelay : 500;
@@ -341,8 +364,8 @@ const downloadPerTurnStats = () => {
 
     const resetGame = () => {
         turnCountRef.current = 0;
-        player1StateHistoryRef.current = new Map();
-        player2StateHistoryRef.current = new Map();
+        player1StateWindowRef.current = [];
+        player2StateWindowRef.current = [];
         setGameOver(false);
         setStats({
             player1Times: [],
@@ -379,12 +402,8 @@ const downloadPerTurnStats = () => {
             setGamesCompleted(newGamesCompleted);
             
             if (newGamesCompleted < TOTAL_GAMES) {
-                setTimeout(() => {
-                    resetGame();
-                    setTimeout(() => {
-                        handleStartGame();
-                    }, 100);
-                }, 500);
+                resetGame();
+                handleStartGame();
             } else {
                 setAllGamesFinished(true);
                 console.log(`All ${TOTAL_GAMES} games completed!`);
@@ -470,32 +489,16 @@ const downloadPerTurnStats = () => {
         setTimeout(async () => {
         turnCountRef.current += 1;
 
-        const justMoved = data.currentPlayer === "Player1" ? "Player2" : "Player1";
-        const historyRef = justMoved === "Player1" ? player1StateHistoryRef : player2StateHistoryRef;
-        const stateKey = serializePlayerPieces(data.board, justMoved);
-        const stateCount = (historyRef.current.get(stateKey) || 0) + 1;
-        historyRef.current.set(stateKey, stateCount);
-
-        if (stateCount >= 4 || turnCountRef.current >= MAX_TURNS) {
-            setCurrentGameWinner("Draw");
-            setTimeout(() => {
-                setGameOver(true);
-                if (gamesCompleted + 1 >= TOTAL_GAMES) {
-                    alert("Game over!");
-                }
-            }, 500);
-            return;
-        }
+        if (detectLoop(data.board, data.currentPlayer)) return;
 
         if (data.gameEnded) {
             setCurrentGameWinner(data.winner);
 
-            setTimeout(() => {
-                setGameOver(true);
-                if (gamesCompleted + 1 >= TOTAL_GAMES) {
-                    alert("Game over!");
-                }
-            }, 500);
+            setGameOver(true);
+            if (gamesCompleted + 1 >= TOTAL_GAMES) {
+                alert("Game over!");
+            }
+            
             return;
         }
 

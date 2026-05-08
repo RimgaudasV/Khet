@@ -395,12 +395,40 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         ALL_ROUTES_COUNT = 0;
         EVALUATED_ROUTES_COUNT = 0;
 
-        var search = AlphaBetaSearch(request.Board, request.Player, MAX_DEPTH, double.NegativeInfinity, double.PositiveInfinity, false, request.Player);
+        var rootMoves = GenerateAllMoves(request.Board, request.Player);
+        ALL_MOVES_COUNT = rootMoves.Count;
+        OrderMoves(rootMoves, request.Board);
 
-        var bestMove = search.BestMove;
-        Console.WriteLine($"Chosen: {bestMove.From} -> {bestMove.To}, Rot: {bestMove.Rotation}");
+        double bestScore = ExploreMove(request.Board, request.Player, rootMoves[0], MAX_DEPTH - 1,
+            double.NegativeInfinity, double.PositiveInfinity, request.Player).Score;
+        Move bestMove = rootMoves[0];
 
-        ImpactResultModel result = bestMove.Rotation != null
+        double sharedAlpha = bestScore;
+        object lockObj = new object();
+
+        Parallel.ForEach(rootMoves.Skip(1), move =>
+        {
+            double localAlpha;
+
+            lock (lockObj) {
+                localAlpha = sharedAlpha; 
+            }
+
+            var result = ExploreMove(request.Board, request.Player, move, MAX_DEPTH - 1,
+                localAlpha, double.PositiveInfinity, request.Player);
+
+            lock (lockObj)
+            {
+                if (result.Score > bestScore)
+                {
+                    bestScore = result.Score;
+                    bestMove = move;
+                    sharedAlpha = bestScore;
+                }
+            }
+        });
+
+        ImpactResultModel applyResult = bestMove.Rotation != null
             ? Rotate(new RotationRequest
             {
                 Board = request.Board,
@@ -416,21 +444,18 @@ public class GameService(IEvaluationService evaluationService) : IGameService
                 NewPosition = bestMove.To
             });
 
-        if (result.DestroyedPiece != null)
-            Console.WriteLine($"Agent ({request.Player}) destroyed {result.DestroyedPiece?.Owner} piece");
-
         return new GameResponse
         {
-            Board = result.Board,
-            CurrentPlayer = result.NextPlayer,
-            GameEnded = result.GameOver,
-            Laser = result.LaserPath,
-            DestroyedPiece = result.DestroyedPiece,
+            Board = applyResult.Board,
+            CurrentPlayer = applyResult.NextPlayer,
+            GameEnded = applyResult.GameOver,
+            Laser = applyResult.LaserPath,
+            DestroyedPiece = applyResult.DestroyedPiece,
             AllMovesCount = ALL_MOVES_COUNT,
             AllRoutesCount = ALL_ROUTES_COUNT,
             EvaluatedRoutesCount = EVALUATED_ROUTES_COUNT,
-            Winner = result.GameOver && result.DestroyedPiece != null
-                ? GetNextPlayer(result.DestroyedPiece.Owner)
+            Winner = applyResult.GameOver && applyResult.DestroyedPiece != null
+                ? GetNextPlayer(applyResult.DestroyedPiece.Owner)
                 : null
         };
     }
@@ -445,37 +470,18 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         Move bestMove = new Move();
 
         var allMoves = GenerateAllMoves(board, player);
+        OrderMoves(allMoves, board);
 
-        Random rng = new Random();
-        int n = allMoves.Count;
-        for (int i = n - 1; i > 0; i--)
-        {
-            int j = rng.Next(i + 1);
-            var temp = allMoves[i];
-            allMoves[i] = allMoves[j];
-            allMoves[j] = temp;
-        }
-
-        if (depth == MAX_DEPTH)
-            ALL_MOVES_COUNT = allMoves.Count;
-
-        ALL_ROUTES_COUNT += allMoves.Count;
+        Interlocked.Add(ref ALL_ROUTES_COUNT, allMoves.Count);
 
         foreach (var move in allMoves)
         {
-            EVALUATED_ROUTES_COUNT++;
+            Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
 
             var undoInformation = MakeMoveInPlace(board, player, move);
-            bool moveResultsInGameOver = undoInformation.Destroyed?.Type == PieceType.Pharaoh;
 
-            Player? winnerPlayer = null;
-            if (moveResultsInGameOver)
-            {
-                winnerPlayer = GetNextPlayer(undoInformation.Destroyed.Owner);
-            }
-
-            double score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta, moveResultsInGameOver,
-                rootPlayer, winnerPlayer).Score;
+            double score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta,
+                IsGameOver(undoInformation), rootPlayer, GetWinner(undoInformation)).Score;
 
             UndoMove(board, undoInformation);
 
@@ -508,6 +514,49 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         {
             Score = bestScore,
             BestMove = bestMove
+        };
+    }
+
+    private SearchResult ExploreMove(BoardModel board, Player player, Move move, int depth, double alpha, double beta, Player rootPlayer)
+    {
+        var boardClone = board.Clone();
+        var undo = MakeMoveInPlace(boardClone, player, move);
+        Interlocked.Increment(ref ALL_ROUTES_COUNT);
+        Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
+        return AlphaBetaSearch(boardClone, GetNextPlayer(player), depth, alpha, beta,
+            IsGameOver(undo), rootPlayer, GetWinner(undo));
+    }
+
+    private static void OrderMoves(List<Move> moves, BoardModel board) =>
+        moves.Sort((a, b) => ScoreMove(board, b).CompareTo(ScoreMove(board, a)));
+
+    private static bool IsGameOver(UndoState undo) =>
+        undo.Destroyed?.Type == PieceType.Pharaoh;
+
+    private Player? GetWinner(UndoState undo) =>
+        IsGameOver(undo) ? GetNextPlayer(undo.Destroyed!.Owner) : null;
+
+    private static int ScoreMove(BoardModel board, Move move)
+    {
+        var piece = board.GetPieceAt(move.From);
+        if (piece == null) return 0;
+
+        if (piece.Type == PieceType.Scarab && move.Rotation == null)
+        {
+            var target = board.GetPieceAt(move.To);
+            if (target != null) return 100;
+        }
+
+        if (piece.Type == PieceType.Pharaoh) return -50;
+
+        if (move.Rotation != null && piece.Type == PieceType.Pyramid) return 20;
+
+        return piece.Type switch
+        {
+            PieceType.Anubis => 10,
+            PieceType.Pyramid => 8,
+            PieceType.Scarab => 5,
+            _ => 0
         };
     }
 
