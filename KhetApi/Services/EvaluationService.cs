@@ -30,9 +30,11 @@ public class EvaluationService : IEvaluationService
             score += laserW * EvaluateLaserEntry(board, rootPlayer, boardInfo.Pieces);
         if (evalConfig.Weights.TryGetValue("Mobility", out var mobilityW) && mobilityW != 0)
             score += mobilityW * EvaluateMobility(board, boardInfo.Pieces, rootPlayer);
+        if (evalConfig.Weights.TryGetValue("LaserReflectorAlignment", out var lraW) && lraW != 0)
+            score += lraW * EvaluateLaserReflectorAlignment(board, boardInfo.Pieces, rootPlayer);
 
         score += Random.Shared.NextDouble();
-        //score += Random.Shared.Next(-1, 5);
+
         return score;
     }
 
@@ -440,6 +442,53 @@ public class EvaluationService : IEvaluationService
 
 
 
+
+
+    private int EvaluateLaserReflectorAlignment(BoardModel board, List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    {
+        int score = 0;
+
+        var reflectors = pieces
+            .Where(p => p.piece.Type == PieceType.Pyramid || p.piece.Type == PieceType.Scarab)
+            .ToList();
+
+        for (int i = 0; i < reflectors.Count; i++)
+        {
+            var (piece, pos) = reflectors[i];
+            int alignCount = 0;
+            for (int j = i + 1; j < reflectors.Count; j++)
+            {
+                var (other, otherPos) = reflectors[j];
+                if (other.Owner != piece.Owner) continue;
+                if ((otherPos.X == pos.X || otherPos.Y == pos.Y) && HasClearLos(board, pos, otherPos))
+                    alignCount++;
+            }
+            var points = alignCount * 4;
+
+            score += piece.Owner == rootPlayer ? points : -points;
+        }
+
+        return score;
+    }
+
+    private bool HasClearLos(BoardModel board, Position a, Position b)
+    {
+        if (a.X == b.X)
+        {
+            int minY = Math.Min(a.Y, b.Y);
+            int maxY = Math.Max(a.Y, b.Y);
+            for (int y = minY + 1; y < maxY; y++)
+                if (board.Cells[y][a.X].Piece != null) return false;
+        }
+        else
+        {
+            int minX = Math.Min(a.X, b.X);
+            int maxX = Math.Max(a.X, b.X);
+            for (int x = minX + 1; x < maxX; x++)
+                if (board.Cells[a.Y][x].Piece != null) return false;
+        }
+        return true;
+    }
 
 
     private int EvaluateTerminalState(int depth, Player? winner, Player rootPlayer, int maxDepth)
