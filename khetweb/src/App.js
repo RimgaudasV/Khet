@@ -1,15 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { startGame } from "./services/api-service";
 import Board from "./components/Board";
-import Settings from "./components/Settings";
+import PlayerSettings from "./components/PlayerSettings";
+import GameSettings from "./components/GameSettings";
+import AgentStats from "./components/Stats";
+import { DEFAULT_WEIGHTS } from "./constants";
 import './App.css';
 
 function App() {
     const [game, setGame] = useState(null);
+    const [stats, setStats] = useState({
+        player1Times: [],
+        player2Times: [],
+        player1AllMoves: [],
+        player2AllMoves: [],
+        player1AllRoutes: [],
+        player2AllRoutes: [],
+        player1EvaluatedRoutes: [],
+        player2EvaluatedRoutes: [],
+        player1Wins: 0,
+        player2Wins: 0
+    });
     const [gameStarted, setGameStarted] = useState(false);
     const [gamesCompleted, setGamesCompleted] = useState(0);
     const [allGamesFinished, setAllGamesFinished] = useState(false);
-    
+
     const [playerOneAgent, setPlayerOneAgent] = useState(() => {
         const saved = localStorage.getItem('playerOneAgent');
         return saved !== null ? JSON.parse(saved) : true;
@@ -26,54 +41,16 @@ function App() {
         const saved = localStorage.getItem('playerTwoDepth');
         return saved !== null ? parseInt(saved) : 2;
     });
-    const [totalGames, setTotalGames] = useState(() => {
-        const saved = localStorage.getItem('totalGames');
-        return saved !== null ? parseInt(saved) : 10;
+
+    const [playerOneWeights, setPlayerOneWeights] = useState(() => {
+        const saved = localStorage.getItem('playerOneWeights');
+        return saved ? { ...DEFAULT_WEIGHTS, ...JSON.parse(saved) } : { ...DEFAULT_WEIGHTS };
     });
-    const [downloadOverallStats, setDownloadOverallStats] = useState(() => {
-        const saved = localStorage.getItem('downloadOverallStats');
-        return saved !== null ? JSON.parse(saved) : true;
+    const [playerTwoWeights, setPlayerTwoWeights] = useState(() => {
+        const saved = localStorage.getItem('playerTwoWeights');
+        return saved ? { ...DEFAULT_WEIGHTS, ...JSON.parse(saved) } : { ...DEFAULT_WEIGHTS };
     });
-    const [downloadPerTurnCSV, setDownloadPerTurnCSV] = useState(() => {
-        const saved = localStorage.getItem('downloadPerTurnCSV');
-        return saved !== null ? JSON.parse(saved) : false;
-    });
-    const [moveDelay, setMoveDelay] = useState(() => {
-        const saved = localStorage.getItem('moveDelay');
-        return saved !== null ? parseInt(saved) : 0;
-    });
-    const [playerOneEvalMaterial, setPlayerOneEvalMaterial] = useState(() => {
-        const saved = localStorage.getItem('playerOneEvalMaterial');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    const [playerTwoEvalMaterial, setPlayerTwoEvalMaterial] = useState(() => {
-        const saved = localStorage.getItem('playerTwoEvalMaterial');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    const [playerOneEvalAlignment, setPlayerOneEvalAlignment] = useState(() => {
-        const saved = localStorage.getItem('playerOneEvalAlignment');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    const [playerTwoEvalAlignment, setPlayerTwoEvalAlignment] = useState(() => {
-        const saved = localStorage.getItem('playerTwoEvalAlignment');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    const [playerOneEvalSphinxAxis, setPlayerOneEvalSphinxAxis] = useState(() => {
-        const saved = localStorage.getItem('playerOneEvalSphinxAxis');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    const [playerTwoEvalSphinxAxis, setPlayerTwoEvalSphinxAxis] = useState(() => {
-        const saved = localStorage.getItem('playerTwoEvalSphinxAxis');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    const [playerOneEvalSphinxDistance, setPlayerOneEvalSphinxDistance] = useState(() => {
-        const saved = localStorage.getItem('playerOneEvalSphinxDistance');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    const [playerTwoEvalSphinxDistance, setPlayerTwoEvalSphinxDistance] = useState(() => {
-        const saved = localStorage.getItem('playerTwoEvalSphinxDistance');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
+
     const [playerOnePieceValuePyramid, setPlayerOnePieceValuePyramid] = useState(() => {
         const saved = localStorage.getItem('playerOnePieceValuePyramid');
         return saved !== null ? parseInt(saved) : 10;
@@ -90,74 +67,39 @@ function App() {
         const saved = localStorage.getItem('playerTwoPieceValueAnubis');
         return saved !== null ? parseInt(saved) : 15;
     });
-    useEffect(() => {
-        localStorage.setItem('playerOneAgent', JSON.stringify(playerOneAgent));
-    }, [playerOneAgent]);
 
-    useEffect(() => {
-        localStorage.setItem('playerTwoAgent', JSON.stringify(playerTwoAgent));
-    }, [playerTwoAgent]);
+    const [totalGames, setTotalGames] = useState(() => {
+        const saved = localStorage.getItem('totalGames');
+        return saved !== null ? parseInt(saved) : 10;
+    });
+    const [downloadOverallStats, setDownloadOverallStats] = useState(() => {
+        const saved = localStorage.getItem('downloadOverallStats');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [downloadPerTurnCSV, setDownloadPerTurnCSV] = useState(() => {
+        const saved = localStorage.getItem('downloadPerTurnCSV');
+        return saved !== null ? JSON.parse(saved) : false;
+    });
+    const [moveDelay, setMoveDelay] = useState(() => {
+        const saved = localStorage.getItem('moveDelay');
+        return saved !== null ? parseInt(saved) : 0;
+    });
 
-    useEffect(() => {
-        localStorage.setItem('playerOneDepth', playerOneDepth.toString());
-    }, [playerOneDepth]);
+    useEffect(() => { localStorage.setItem('playerOneAgent', JSON.stringify(playerOneAgent)); }, [playerOneAgent]);
+    useEffect(() => { localStorage.setItem('playerTwoAgent', JSON.stringify(playerTwoAgent)); }, [playerTwoAgent]);
+    useEffect(() => { localStorage.setItem('playerOneDepth', playerOneDepth.toString()); }, [playerOneDepth]);
+    useEffect(() => { localStorage.setItem('playerTwoDepth', playerTwoDepth.toString()); }, [playerTwoDepth]);
+    useEffect(() => { localStorage.setItem('playerOneWeights', JSON.stringify(playerOneWeights)); }, [playerOneWeights]);
+    useEffect(() => { localStorage.setItem('playerTwoWeights', JSON.stringify(playerTwoWeights)); }, [playerTwoWeights]);
+    useEffect(() => { localStorage.setItem('playerOnePieceValuePyramid', playerOnePieceValuePyramid.toString()); }, [playerOnePieceValuePyramid]);
+    useEffect(() => { localStorage.setItem('playerTwoPieceValuePyramid', playerTwoPieceValuePyramid.toString()); }, [playerTwoPieceValuePyramid]);
+    useEffect(() => { localStorage.setItem('playerOnePieceValueAnubis', playerOnePieceValueAnubis.toString()); }, [playerOnePieceValueAnubis]);
+    useEffect(() => { localStorage.setItem('playerTwoPieceValueAnubis', playerTwoPieceValueAnubis.toString()); }, [playerTwoPieceValueAnubis]);
+    useEffect(() => { localStorage.setItem('totalGames', totalGames.toString()); }, [totalGames]);
+    useEffect(() => { localStorage.setItem('downloadOverallStats', JSON.stringify(downloadOverallStats)); }, [downloadOverallStats]);
+    useEffect(() => { localStorage.setItem('downloadPerTurnCSV', JSON.stringify(downloadPerTurnCSV)); }, [downloadPerTurnCSV]);
+    useEffect(() => { localStorage.setItem('moveDelay', moveDelay.toString()); }, [moveDelay]);
 
-    useEffect(() => {
-        localStorage.setItem('playerTwoDepth', playerTwoDepth.toString());
-    }, [playerTwoDepth]);
-
-    useEffect(() => {
-        localStorage.setItem('totalGames', totalGames.toString());
-    }, [totalGames]);
-
-    useEffect(() => {
-        localStorage.setItem('downloadOverallStats', JSON.stringify(downloadOverallStats));
-    }, [downloadOverallStats]);
-
-    useEffect(() => {
-        localStorage.setItem('downloadPerTurnCSV', JSON.stringify(downloadPerTurnCSV));
-    }, [downloadPerTurnCSV]);
-
-    useEffect(() => {
-        localStorage.setItem('moveDelay', moveDelay.toString());
-    }, [moveDelay]);
-
-    useEffect(() => {
-        localStorage.setItem('playerOneEvalMaterial', JSON.stringify(playerOneEvalMaterial));
-    }, [playerOneEvalMaterial]);
-    useEffect(() => {
-        localStorage.setItem('playerTwoEvalMaterial', JSON.stringify(playerTwoEvalMaterial));
-    }, [playerTwoEvalMaterial]);
-    useEffect(() => {
-        localStorage.setItem('playerOneEvalAlignment', JSON.stringify(playerOneEvalAlignment));
-    }, [playerOneEvalAlignment]);
-    useEffect(() => {
-        localStorage.setItem('playerTwoEvalAlignment', JSON.stringify(playerTwoEvalAlignment));
-    }, [playerTwoEvalAlignment]);
-    useEffect(() => {
-        localStorage.setItem('playerOneEvalSphinxAxis', JSON.stringify(playerOneEvalSphinxAxis));
-    }, [playerOneEvalSphinxAxis]);
-    useEffect(() => {
-        localStorage.setItem('playerTwoEvalSphinxAxis', JSON.stringify(playerTwoEvalSphinxAxis));
-    }, [playerTwoEvalSphinxAxis]);
-    useEffect(() => {
-        localStorage.setItem('playerOneEvalSphinxDistance', JSON.stringify(playerOneEvalSphinxDistance));
-    }, [playerOneEvalSphinxDistance]);
-    useEffect(() => {
-        localStorage.setItem('playerTwoEvalSphinxDistance', JSON.stringify(playerTwoEvalSphinxDistance));
-    }, [playerTwoEvalSphinxDistance]);
-    useEffect(() => {
-        localStorage.setItem('playerOnePieceValuePyramid', playerOnePieceValuePyramid.toString());
-    }, [playerOnePieceValuePyramid]);
-    useEffect(() => {
-        localStorage.setItem('playerTwoPieceValuePyramid', playerTwoPieceValuePyramid.toString());
-    }, [playerTwoPieceValuePyramid]);
-    useEffect(() => {
-        localStorage.setItem('playerOnePieceValueAnubis', playerOnePieceValueAnubis.toString());
-    }, [playerOnePieceValueAnubis]);
-    useEffect(() => {
-        localStorage.setItem('playerTwoPieceValueAnubis', playerTwoPieceValueAnubis.toString());
-    }, [playerTwoPieceValueAnubis]);
     useEffect(() => {
         startGame().then(setGame).catch(console.error);
     }, []);
@@ -180,92 +122,84 @@ function App() {
         playerTwoAgent,
         playerOneDepth,
         playerTwoDepth,
-        totalGames,
-        downloadOverallStats,
-        downloadPerTurnCSV,
-        moveDelay,
-        playerOneEvalMaterial,
-        playerTwoEvalMaterial,
-        playerOneEvalAlignment,
-        playerTwoEvalAlignment,
-        playerOneEvalSphinxAxis,
-        playerTwoEvalSphinxAxis,
-        playerOneEvalSphinxDistance,
-        playerTwoEvalSphinxDistance,
+        playerOneWeights,
+        playerTwoWeights,
         playerOnePieceValuePyramid,
         playerTwoPieceValuePyramid,
         playerOnePieceValueAnubis,
         playerTwoPieceValueAnubis,
+        totalGames,
+        downloadOverallStats,
+        downloadPerTurnCSV,
+        moveDelay,
     };
 
-return (
-    <div className="app-container">
-        <div className="game-layout">
-
-            <Settings
-                playerOneAgent={playerOneAgent}
-                setPlayerOneAgent={setPlayerOneAgent}
-                playerTwoAgent={playerTwoAgent}
-                setPlayerTwoAgent={setPlayerTwoAgent}
-                playerOneDepth={playerOneDepth}
-                setPlayerOneDepth={setPlayerOneDepth}
-                playerTwoDepth={playerTwoDepth}
-                setPlayerTwoDepth={setPlayerTwoDepth}
+    return (
+        <div className="app-container">
+            <div className="game-row">
+                <PlayerSettings
+                    playerLabel="Player 1 (Blue)"
+                    isAgent={playerOneAgent}
+                    setIsAgent={setPlayerOneAgent}
+                    depth={playerOneDepth}
+                    setDepth={setPlayerOneDepth}
+                    weights={playerOneWeights}
+                    setWeights={setPlayerOneWeights}
+                    pieceValuePyramid={playerOnePieceValuePyramid}
+                    setPieceValuePyramid={setPlayerOnePieceValuePyramid}
+                    pieceValueAnubis={playerOnePieceValueAnubis}
+                    setPieceValueAnubis={setPlayerOnePieceValueAnubis}
+                    gameStarted={gameStarted}
+                />
+                <div className="board-section">
+                    <Board
+                        game={game}
+                        settings={settings}
+                        gameStarted={gameStarted}
+                        setGameStarted={setGameStarted}
+                        gamesCompleted={gamesCompleted}
+                        setGamesCompleted={setGamesCompleted}
+                        allGamesFinished={allGamesFinished}
+                        setAllGamesFinished={setAllGamesFinished}
+                        stats={stats}
+                        setStats={setStats}
+                    />
+                </div>
+                <PlayerSettings
+                    playerLabel="Player 2 (Red)"
+                    isAgent={playerTwoAgent}
+                    setIsAgent={setPlayerTwoAgent}
+                    depth={playerTwoDepth}
+                    setDepth={setPlayerTwoDepth}
+                    weights={playerTwoWeights}
+                    setWeights={setPlayerTwoWeights}
+                    pieceValuePyramid={playerTwoPieceValuePyramid}
+                    setPieceValuePyramid={setPlayerTwoPieceValuePyramid}
+                    pieceValueAnubis={playerTwoPieceValueAnubis}
+                    setPieceValueAnubis={setPlayerTwoPieceValueAnubis}
+                    gameStarted={gameStarted}
+                />
+            </div>
+            <GameSettings
                 totalGames={totalGames}
                 setTotalGames={setTotalGames}
+                moveDelay={moveDelay}
+                setMoveDelay={setMoveDelay}
                 downloadOverallStats={downloadOverallStats}
                 setDownloadOverallStats={setDownloadOverallStats}
                 downloadPerTurnCSV={downloadPerTurnCSV}
                 setDownloadPerTurnCSV={setDownloadPerTurnCSV}
-                moveDelay={moveDelay}
-                setMoveDelay={setMoveDelay}
                 gameStarted={gameStarted}
                 onStartGame={handleStartGame}
                 onRestart={handleRestart}
                 gamesCompleted={gamesCompleted}
                 allGamesFinished={allGamesFinished}
-                playerOneEvalMaterial={playerOneEvalMaterial}
-                setPlayerOneEvalMaterial={setPlayerOneEvalMaterial}
-                playerTwoEvalMaterial={playerTwoEvalMaterial}
-                setPlayerTwoEvalMaterial={setPlayerTwoEvalMaterial}
-                playerOneEvalAlignment={playerOneEvalAlignment}
-                setPlayerOneEvalAlignment={setPlayerOneEvalAlignment}
-                playerTwoEvalAlignment={playerTwoEvalAlignment}
-                setPlayerTwoEvalAlignment={setPlayerTwoEvalAlignment}
-                playerOneEvalSphinxAxis={playerOneEvalSphinxAxis}
-                setPlayerOneEvalSphinxAxis={setPlayerOneEvalSphinxAxis}
-                playerTwoEvalSphinxAxis={playerTwoEvalSphinxAxis}
-                setPlayerTwoEvalSphinxAxis={setPlayerTwoEvalSphinxAxis}
-                playerOneEvalSphinxDistance={playerOneEvalSphinxDistance}
-                setPlayerOneEvalSphinxDistance={setPlayerOneEvalSphinxDistance}
-                playerTwoEvalSphinxDistance={playerTwoEvalSphinxDistance}
-                setPlayerTwoEvalSphinxDistance={setPlayerTwoEvalSphinxDistance}
-                playerOnePieceValuePyramid={playerOnePieceValuePyramid}
-                setPlayerOnePieceValuePyramid={setPlayerOnePieceValuePyramid}
-                playerTwoPieceValuePyramid={playerTwoPieceValuePyramid}
-                setPlayerTwoPieceValuePyramid={setPlayerTwoPieceValuePyramid}
-                playerOnePieceValueAnubis={playerOnePieceValueAnubis}
-                setPlayerOnePieceValueAnubis={setPlayerOnePieceValueAnubis}
-                playerTwoPieceValueAnubis={playerTwoPieceValueAnubis}
-                setPlayerTwoPieceValueAnubis={setPlayerTwoPieceValueAnubis}
             />
-
-            <div className="board-section">
-                <Board 
-                    game={game} 
-                    settings={settings}
-                    gameStarted={gameStarted}
-                    setGameStarted={setGameStarted}
-                    gamesCompleted={gamesCompleted}
-                    setGamesCompleted={setGamesCompleted}
-                    allGamesFinished={allGamesFinished}
-                    setAllGamesFinished={setAllGamesFinished}
-                />
-            </div>
-
+            {(stats.player1Times.length > 0 || stats.player2Times.length > 0) && (
+                <AgentStats stats={stats} />
+            )}
         </div>
-    </div>
-);
+    );
 }
 
 export default App;

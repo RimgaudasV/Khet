@@ -21,20 +21,6 @@ public class BoardModel
     public BoardModel()
     {
         Cells = new Cell[Height][];
-
-        for (int y = 0; y < Height; y++)
-        {
-            Cells[y] = new Cell[Width];
-            for (int x = 0; x < Width; x++)
-                Cells[y][x] = new Cell();
-        }
-
-        InitiateBoard();
-    }
-
-    private BoardModel(bool _)
-    {
-        Cells = new Cell[Height][];
         for (int y = 0; y < Height; y++)
         {
             Cells[y] = new Cell[Width];
@@ -45,7 +31,7 @@ public class BoardModel
 
     public BoardModel Clone()
     {
-        var clone = new BoardModel(false);
+        var clone = new BoardModel();
         for (int y = 0; y < Height; y++)
             for (int x = 0; x < Width; x++)
             {
@@ -64,7 +50,7 @@ public class BoardModel
     }
 
 
-    private void InitiateBoard()
+    public void InitiateBoard()
     {
         // Sphinx
         SetPiece(0, 0, PieceType.Sphinx, Player.Player2, Rotation.Down, false);

@@ -21,10 +21,4 @@ public sealed class UndoState
 
 }
 
-public class SearchResult
-{
-    public double Score;
-    public Move BestMove;
-}
-
 

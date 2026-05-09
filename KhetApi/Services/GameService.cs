@@ -26,9 +26,10 @@ public class GameService(IEvaluationService evaluationService) : IGameService
     public GameResponse StartGame()
     {
         var board = new BoardModel();
+        board.InitiateBoard();
         return new GameResponse
         {
-            Board = new BoardModel(),
+            Board = board,
             CurrentPlayer = Player.Player1
         };
     }
@@ -390,7 +391,6 @@ public class GameService(IEvaluationService evaluationService) : IGameService
     {
         MAX_DEPTH = request.Depth;
         _evalConfig = request.EvaluationConfig ?? new();
-
         ALL_MOVES_COUNT = 0;
         ALL_ROUTES_COUNT = 0;
         EVALUATED_ROUTES_COUNT = 0;
@@ -399,132 +399,107 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         ALL_MOVES_COUNT = rootMoves.Count;
         OrderMoves(rootMoves, request.Board);
 
-        double bestScore = ExploreMove(request.Board, request.Player, rootMoves[0], MAX_DEPTH - 1,
-            double.NegativeInfinity, double.PositiveInfinity, request.Player).Score;
-        Move bestMove = rootMoves[0];
-
-        double sharedAlpha = bestScore;
-        object lockObj = new object();
-
-        Parallel.ForEach(rootMoves.Skip(1), move =>
-        {
-            double localAlpha;
-
-            lock (lockObj) {
-                localAlpha = sharedAlpha; 
-            }
-
-            var result = ExploreMove(request.Board, request.Player, move, MAX_DEPTH - 1,
-                localAlpha, double.PositiveInfinity, request.Player);
-
-            lock (lockObj)
-            {
-                if (result.Score > bestScore)
-                {
-                    bestScore = result.Score;
-                    bestMove = move;
-                    sharedAlpha = bestScore;
-                }
-            }
-        });
-
-        ImpactResultModel applyResult = bestMove.Rotation != null
-            ? Rotate(new RotationRequest
-            {
-                Board = request.Board,
-                Player = request.Player,
-                CurrentPosition = bestMove.From,
-                NewRotation = bestMove.Rotation.Value
-            })
-            : MakeMove(new MoveRequest
-            {
-                Board = request.Board,
-                Player = request.Player,
-                CurrentPosition = bestMove.From,
-                NewPosition = bestMove.To
-            });
+        var bestMove = FindBestMove(request.Board, request.Player, rootMoves);
+        var impact = ApplyMove(request.Board, request.Player, bestMove);
 
         return new GameResponse
         {
-            Board = applyResult.Board,
-            CurrentPlayer = applyResult.NextPlayer,
-            GameEnded = applyResult.GameOver,
-            Laser = applyResult.LaserPath,
-            DestroyedPiece = applyResult.DestroyedPiece,
+            Board = impact.Board,
+            CurrentPlayer = impact.NextPlayer,
+            GameEnded = impact.GameOver,
+            Laser = impact.LaserPath,
+            DestroyedPiece = impact.DestroyedPiece,
             AllMovesCount = ALL_MOVES_COUNT,
             AllRoutesCount = ALL_ROUTES_COUNT,
             EvaluatedRoutesCount = EVALUATED_ROUTES_COUNT,
-            Winner = applyResult.GameOver && applyResult.DestroyedPiece != null
-                ? GetNextPlayer(applyResult.DestroyedPiece.Owner)
+            Winner = impact.GameOver && impact.DestroyedPiece != null
+                ? GetNextPlayer(impact.DestroyedPiece.Owner)
                 : null
         };
     }
 
-    private SearchResult AlphaBetaSearch(BoardModel board, Player player, int depth, double alpha, double beta, bool gameOver, Player rootPlayer, Player? winner = null)
+    private Move FindBestMove(BoardModel board, Player player, List<Move> rootMoves)
     {
-        if (depth == 0 || gameOver)
-            return new SearchResult { Score = evaluationService.EvaluateBoard(board, gameOver, depth, winner, rootPlayer, MAX_DEPTH, _evalConfig)};
+        var oldestBrotherClone = board.Clone();
+        var oldestBrotherUndo = MakeMoveInPlace(oldestBrotherClone, player, rootMoves[0]);
 
-        bool maximizing = player == rootPlayer;
-        double bestScore = maximizing ? double.NegativeInfinity : double.PositiveInfinity;
-        Move bestMove = new Move();
+        Interlocked.Increment(ref ALL_ROUTES_COUNT);
+        Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
 
-        var allMoves = GenerateAllMoves(board, player);
-        OrderMoves(allMoves, board);
+        double bestScore = AlphaBetaSearch(oldestBrotherClone, GetNextPlayer(player), MAX_DEPTH - 1,
+            double.NegativeInfinity, double.PositiveInfinity, IsGameOver(oldestBrotherUndo), player, GetWinner(oldestBrotherUndo));
+        Move bestMove = rootMoves[0];
 
-        Interlocked.Add(ref ALL_ROUTES_COUNT, allMoves.Count);
+        object lockObj = new();
 
-        foreach (var move in allMoves)
+        Parallel.ForEach(rootMoves.Skip(1), move =>
         {
+            var boardClone = board.Clone();
+            var undo = MakeMoveInPlace(boardClone, player, move);
+            Interlocked.Increment(ref ALL_ROUTES_COUNT);
             Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
 
-            var undoInformation = MakeMoveInPlace(board, player, move);
+            double localAlpha;
+            lock (lockObj) { localAlpha = bestScore; }
 
-            double score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta,
-                IsGameOver(undoInformation), rootPlayer, GetWinner(undoInformation)).Score;
+            double score = AlphaBetaSearch(boardClone, GetNextPlayer(player), MAX_DEPTH - 1,
+                localAlpha, double.PositiveInfinity, IsGameOver(undo), player, GetWinner(undo));
 
-            UndoMove(board, undoInformation);
-
-            if (maximizing)
+            lock (lockObj)
             {
                 if (score > bestScore)
                 {
                     bestScore = score;
                     bestMove = move;
                 }
+            }
+        });
 
-                alpha = Math.Max(alpha, score);
+        return bestMove;
+    }
+
+    private ImpactResultModel ApplyMove(BoardModel board, Player player, Move move) =>
+        move.Rotation != null
+            ? Rotate(new RotationRequest { Board = board, Player = player, CurrentPosition = move.From, NewRotation = move.Rotation.Value })
+            : MakeMove(new MoveRequest { Board = board, Player = player, CurrentPosition = move.From, NewPosition = move.To });
+
+    private double AlphaBetaSearch(BoardModel board, Player player, int depth, double alpha, double beta, bool gameOver, Player rootPlayer, Player? winner = null)
+    {
+        if (depth == 0 || gameOver)
+            return evaluationService.EvaluateBoard(board, gameOver, depth, winner, rootPlayer, MAX_DEPTH, _evalConfig);
+
+        bool maximizing = player == rootPlayer;
+        double bestScore = maximizing ? double.NegativeInfinity : double.PositiveInfinity;
+
+        var allMoves = GenerateAllMoves(board, player);
+        OrderMoves(allMoves, board);
+        Interlocked.Add(ref ALL_ROUTES_COUNT, allMoves.Count);
+
+        foreach (var move in allMoves)
+        {
+            Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
+
+            var undo = MakeMoveInPlace(board, player, move);
+            double score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta,
+                IsGameOver(undo), rootPlayer, GetWinner(undo));
+            UndoMove(board, undo);
+
+            if (maximizing)
+            {
+                bestScore = Math.Max(bestScore, score);
+                alpha = Math.Max(alpha, bestScore);
             }
             else
             {
-                if (score < bestScore)
-                {
-                    bestScore = score;
-                    bestMove = move;
-                }
-
-                beta = Math.Min(beta, score);
+                bestScore = Math.Min(bestScore, score);
+                beta = Math.Min(beta, bestScore);
             }
 
             if (beta <= alpha)
                 break;
         }
 
-        return new SearchResult
-        {
-            Score = bestScore,
-            BestMove = bestMove
-        };
-    }
-
-    private SearchResult ExploreMove(BoardModel board, Player player, Move move, int depth, double alpha, double beta, Player rootPlayer)
-    {
-        var boardClone = board.Clone();
-        var undo = MakeMoveInPlace(boardClone, player, move);
-        Interlocked.Increment(ref ALL_ROUTES_COUNT);
-        Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
-        return AlphaBetaSearch(boardClone, GetNextPlayer(player), depth, alpha, beta,
-            IsGameOver(undo), rootPlayer, GetWinner(undo));
+        return bestScore;
     }
 
     private static void OrderMoves(List<Move> moves, BoardModel board) =>
