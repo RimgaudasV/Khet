@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
 import Piece from "./Piece";
-import AgentStats from "./Stats";
 import { rotatePiece, isHighlighted } from "../services/game-service";
 import { getValidMoves, makeMove, moveByAgent } from "../services/api-service";
 import Laser from "./Laser";
 import "../styles/Board.css";
+import { HEURISTICS } from "../constants";
 
 export default function Board({
-    game, 
+    game,
     settings,
     gameStarted,
     setGameStarted,
     gamesCompleted,
     setGamesCompleted,
     allGamesFinished,
-    setAllGamesFinished
+    setAllGamesFinished,
+    stats,
+    setStats,
 }) {
     const PLAYER_ONE_AGENT = settings.playerOneAgent;
     const PLAYER_TWO_AGENT = settings.playerTwoAgent;
@@ -22,22 +24,14 @@ export default function Board({
     const PLAYER_TWO_AGENT_DEPTH = settings.playerTwoDepth;
     const TOTAL_GAMES = settings.totalGames;
     const PLAYER_ONE_EVAL_CONFIG = {
-        UseMaterial: settings.playerOneEvalMaterial,
-        UsePharaohAlignment: settings.playerOneEvalAlignment,
-        UsePieceSquareTables: settings.playerOneEvalPst,
-        UseLaserEntry: settings.playerOneEvalLaserEntry,
-
+        Weights: settings.playerOneWeights,
         PieceValues: {
             Pyramid: settings.playerOnePieceValuePyramid,
             Anubis:  settings.playerOnePieceValueAnubis,
         }
     };
     const PLAYER_TWO_EVAL_CONFIG = {
-        UseMaterial: settings.playerTwoEvalMaterial,
-        UsePharaohAlignment: settings.playerTwoEvalAlignment,
-        UsePieceSquareTables: settings.playerTwoEvalPst,
-        UseLaserEntry: settings.playerTwoEvalLaserEntry,
-
+        Weights: settings.playerTwoWeights,
         PieceValues: {
             Pyramid: settings.playerTwoPieceValuePyramid,
             Anubis:  settings.playerTwoPieceValueAnubis,
@@ -59,18 +53,6 @@ export default function Board({
     const [perTurnStats, setPerTurnStats] = useState([]);
 
     
-    const [stats, setStats] = useState({
-        player1Times: [],
-        player2Times: [],
-        player1AllMoves: [],
-        player2AllMoves: [],
-        player1AllRoutes: [],
-        player2AllRoutes: [],
-        player1EvaluatedRoutes: [],
-        player2EvaluatedRoutes: [],
-        player1Wins: 0,
-        player2Wins: 0
-    });
 
 
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
@@ -286,14 +268,15 @@ const downloadPerTurnStats = () => {
         const totalAvgPlayer2Time =
             allGamesData.reduce((s, g) => s + g.avgPlayer2Time, 0) / allGamesData.length;
 
-        const fmtEval = (cfg) => {
-            const mat = cfg.UseMaterial
-                ? `Material: on (Pyramid=${cfg.PieceValues.Pyramid}, Anubis=${cfg.PieceValues.Anubis})`
-                : 'Material: off';
-            const align = `PharaohAlignment: ${cfg.UsePharaohAlignment ? 'on' : 'off'}`;
-            const sphinx = `SphinxSupport: ${cfg.UseSphinxSupport ? 'on' : 'off'}`;
-            return `${mat}, ${align}, ${sphinx}`;
-        };
+        const fmtEval = (cfg) => HEURISTICS
+            .map(({ key, label, showPieceValues }) => {
+                const w = cfg.Weights[key] ?? 0;
+                const extra = showPieceValues
+                    ? ` (Pyramid=${cfg.PieceValues.Pyramid}, Anubis=${cfg.PieceValues.Anubis})`
+                    : '';
+                return `${label}: ${w}${extra}`;
+            })
+            .join(', ');
 
         let fileContent = '=== Game Results ===\n';
         allGamesData.forEach(game => {
@@ -605,20 +588,6 @@ const downloadPerTurnStats = () => {
                 </div>
 
                 <div className="board-and-top">
-                    {gameStarted ? (
-                        <div className="current-player-display">
-                            {allGamesFinished ? (
-                                `All ${TOTAL_GAMES} games completed!`
-                            ) : (
-                                <>
-                                    Game {gamesCompleted + 1}/{TOTAL_GAMES} - {(currentPlayer === "Player1" ? "Blue" : "Red")}'s turn{" "}
-                                    {isCurrentPlayerAgent(currentPlayer) ? "(Agent)" : "(Human)"}
-                                    {isProcessing && " - Thinking..."}
-                                </>
-                            )}
-                        </div>
-                    ) : ("")}
-                    
                     <div className="x-axis">
                         {Array.from({ length: COLS }, (_, i) => (
                             <div key={i} className="x-label">
@@ -701,9 +670,6 @@ const downloadPerTurnStats = () => {
                         </div>
                     )}
                     
-                    {gameStarted && (stats.player1Times.length > 0 || stats.player2Times.length > 0) && (
-                        <AgentStats stats={stats} />
-                    )}
                 </div>
             </div>
         </div>

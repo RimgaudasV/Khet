@@ -1,34 +1,26 @@
-
-.settings-sidebar {
+.player-panel {
     background-color: white;
-    padding: 24px;
+    padding: 20px;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border: 2px solid #ddd;
-    width: 320px;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 200px;
 }
 
-.settings-sidebar h2 {
-    margin: 0 0 20px 0;
+.player-panel h2 {
+    margin: 0 0 16px 0;
     color: #333;
-    font-size: 20px;
+    font-size: 18px;
     border-bottom: 2px solid #4CAF50;
-    padding-bottom: 10px;
+    padding-bottom: 8px;
 }
 
 .settings-section {
-    margin-bottom: 20px;
-    padding: 14px;
+    padding: 12px;
     background-color: #f9f9f9;
     border-radius: 8px;
     border: 1px solid #ddd;
-}
-
-.settings-section h3 {
-    margin: 0 0 10px 0;
-    color: #555;
-    font-size: 16px;
 }
 
 .checkbox-label {
@@ -56,6 +48,34 @@
     margin-left: 26px;
 }
 
+.depth-control label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.depth-control input[type="number"] {
+    width: 60px;
+    padding: 4px 6px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.depth-control input[type="number"]:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+.depth-control input[type="number"]:disabled {
+    background-color: #f0f0f0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 .eval-methods {
     margin-top: 10px;
     padding-top: 8px;
@@ -66,27 +86,109 @@
     display: block;
     font-size: 12px;
     color: #888;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 
-.eval-methods .checkbox-label {
-    font-size: 13px;
-    margin: 5px 0;
+.eval-method-row {
+    margin: 6px 0;
 }
 
-.depth-control label,
-.settings-section > label {
+.eval-weight-label {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    gap: 8px;
+}
+
+.eval-weight-label input[type="number"] {
+    width: 56px;
+    padding: 3px 6px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    text-align: center;
+}
+
+.eval-weight-label input[type="number"]:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+.eval-weight-label input[type="number"]:disabled {
+    background-color: #f0f0f0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.eval-method-name {
+    font-size: 13px;
+    color: #555;
+    font-style: italic;
+}
+
+.piece-values {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+    margin-left: 4px;
+}
+
+.piece-values label {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    gap: 8px;
+}
+
+.piece-values input[type="number"] {
+    width: 56px;
+    padding: 3px 6px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    text-align: center;
+}
+
+.piece-values input[type="number"]:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+.piece-values input[type="number"]:disabled {
+    background-color: #f0f0f0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Game settings bar below the board */
+
+.game-settings-row {
+    width: 100%;
+}
+
+.game-settings-inner {
+    background-color: white;
+    padding: 16px 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 2px solid #ddd;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+}
+
+.game-settings-inner label {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 8px 0;
     font-size: 14px;
 }
 
-.depth-control input[type="number"],
-.settings-section > label input[type="number"] {
+.game-settings-inner input[type="number"] {
     width: 70px;
     padding: 5px 8px;
     border: 2px solid #ddd;
@@ -95,24 +197,20 @@
     text-align: center;
 }
 
-.depth-control input[type="number"]:focus,
-.settings-section > label input[type="number"]:focus {
+.game-settings-inner input[type="number"]:focus {
     outline: none;
     border-color: #4CAF50;
 }
 
-.depth-control input[type="number"]:disabled,
-.settings-section > label input[type="number"]:disabled {
+.game-settings-inner input[type="number"]:disabled {
     background-color: #f0f0f0;
     cursor: not-allowed;
     opacity: 0.6;
 }
 
-.settings-sidebar .start-game-button {
-    width: 100%;
-    margin-top: 16px;
-    padding: 12px;
-    font-size: 16px;
+.start-game-button {
+    padding: 10px 24px;
+    font-size: 15px;
     font-weight: bold;
     background-color: #4CAF50;
     color: white;
@@ -122,13 +220,15 @@
     transition: background-color 0.2s;
 }
 
-.settings-sidebar .start-game-button:hover {
+.start-game-button:hover {
     background-color: #45a049;
 }
 
 .game-status {
-    margin-top: 16px;
-    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
     background-color: #e8f5e9;
     border-radius: 6px;
     border: 2px solid #4CAF50;
@@ -138,6 +238,5 @@
     margin: 0;
     font-weight: bold;
     color: #2e7d32;
-    text-align: center;
     font-size: 14px;
 }

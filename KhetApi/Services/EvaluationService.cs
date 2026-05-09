@@ -19,16 +19,15 @@ public class EvaluationService : IEvaluationService
 
         double score = 0;
 
-        if (evalConfig.UseMaterial)
-            score += EvaluateMaterial(boardInfo.Pieces, rootPlayer, evalConfig.PieceValues);
-        //score += EvaluatePhaseSpecific(board, boardInfo.Pieces, rootPlayer, phase);
-        if (evalConfig.UsePharaohAlignment)
-            score += EvaluatePharaohAlignment(boardInfo, rootPlayer);
-        if (evalConfig.UsePieceSquareTables)
-            score += EvaluatePieceSquareTables(boardInfo.Pieces, rootPlayer);
-        if (evalConfig.UseLaserEntry)
-            score += EvaluateLaserEntry(board, rootPlayer, boardInfo.Pieces);
-        //score += EvaluatePharaohThreats(boardInfo.PharaohPosition, board, rootPlayer);
+        if (evalConfig.Weights.TryGetValue("Material", out var matW) && matW != 0)
+            score += matW * EvaluateMaterial(boardInfo.Pieces, rootPlayer, evalConfig.PieceValues);
+
+        if (evalConfig.Weights.TryGetValue("PharaohAlignment", out var alignW) && alignW != 0)
+            score += alignW * EvaluatePharaohAlignment(boardInfo, rootPlayer);
+        if (evalConfig.Weights.TryGetValue("PieceSquareTables", out var pstW) && pstW != 0)
+            score += pstW * EvaluatePieceSquareTables(boardInfo.Pieces, rootPlayer);
+        if (evalConfig.Weights.TryGetValue("LaserEntry", out var laserW) && laserW != 0)
+            score += laserW * EvaluateLaserEntry(board, rootPlayer, boardInfo.Pieces);
 
         score += Random.Shared.NextDouble();
         //score += Random.Shared.Next(-1, 5);
