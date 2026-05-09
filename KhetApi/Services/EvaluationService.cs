@@ -33,8 +33,6 @@ public class EvaluationService : IEvaluationService
         if (evalConfig.Weights.TryGetValue("LaserReflectorAlignment", out var lraW) && lraW != 0)
             score += lraW * EvaluateLaserReflectorAlignment(board, boardInfo.Pieces, rootPlayer);
 
-        score += Random.Shared.NextDouble();
-
         return score;
     }
 

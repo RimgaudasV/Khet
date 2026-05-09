@@ -418,44 +418,52 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         };
     }
 
+    private const double BEST_MOVE_THRESHOLD = 1.0;
+
     private Move FindBestMove(BoardModel board, Player player, List<Move> rootMoves)
     {
+        var scores = new double[rootMoves.Count];
+
         var oldestBrotherClone = board.Clone();
         var oldestBrotherUndo = MakeMoveInPlace(oldestBrotherClone, player, rootMoves[0]);
 
         Interlocked.Increment(ref ALL_ROUTES_COUNT);
         Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
 
-        double bestScore = AlphaBetaSearch(oldestBrotherClone, GetNextPlayer(player), MAX_DEPTH - 1,
+        scores[0] = AlphaBetaSearch(oldestBrotherClone, GetNextPlayer(player), MAX_DEPTH - 1,
             double.NegativeInfinity, double.PositiveInfinity, IsGameOver(oldestBrotherUndo), player, GetWinner(oldestBrotherUndo));
-        Move bestMove = rootMoves[0];
 
+        double bestScore = scores[0];
         object lockObj = new();
 
-        Parallel.ForEach(rootMoves.Skip(1), move =>
+        Parallel.For(1, rootMoves.Count, i =>
         {
             var boardClone = board.Clone();
-            var undo = MakeMoveInPlace(boardClone, player, move);
+            var undo = MakeMoveInPlace(boardClone, player, rootMoves[i]);
             Interlocked.Increment(ref ALL_ROUTES_COUNT);
             Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
 
             double localAlpha;
-            lock (lockObj) { localAlpha = bestScore; }
+            lock (lockObj) { localAlpha = bestScore - BEST_MOVE_THRESHOLD; }
 
             double score = AlphaBetaSearch(boardClone, GetNextPlayer(player), MAX_DEPTH - 1,
                 localAlpha, double.PositiveInfinity, IsGameOver(undo), player, GetWinner(undo));
 
+            scores[i] = score;
             lock (lockObj)
             {
                 if (score > bestScore)
-                {
                     bestScore = score;
-                    bestMove = move;
-                }
             }
         });
 
-        return bestMove;
+        var candidates = rootMoves
+            .Select((move, i) => (move, scores[i]))
+            .Where(x => x.Item2 >= bestScore - BEST_MOVE_THRESHOLD)
+            .Select(x => x.move)
+            .ToList();
+
+        return candidates[Random.Shared.Next(candidates.Count)];
     }
 
     private ImpactResultModel ApplyMove(BoardModel board, Player player, Move move) =>
