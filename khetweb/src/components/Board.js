@@ -63,6 +63,8 @@ export default function Board({
     const turnCountRef = useRef(0);
     const player1StateWindowRef = useRef([]);
     const player2StateWindowRef = useRef([]);
+    const player1PosWindowRef = useRef([]);
+    const player2PosWindowRef = useRef([]);
 
     const serializePlayerPieces = (board, player) =>
         board.cells.map(row =>
@@ -72,15 +74,28 @@ export default function Board({
             }).join('')
         ).join('|');
 
+    const serializePlayerPositions = (board, player) =>
+        board.cells.map(row =>
+            row.map(cell => {
+                const p = cell.piece;
+                return (p && p.owner === player) ? p.type[0] : '_';
+            }).join('')
+        ).join('|');
+
     const detectLoop = (board, currentPlayer) => {
         const justMoved = currentPlayer === "Player1" ? "Player2" : "Player1";
         const windowRef = justMoved === "Player1" ? player1StateWindowRef : player2StateWindowRef;
+        const posWindowRef = justMoved === "Player1" ? player1PosWindowRef : player2PosWindowRef;
         const stateKey = serializePlayerPieces(board, justMoved);
+        const posKey = serializePlayerPositions(board, justMoved);
 
         windowRef.current = [...windowRef.current, stateKey].slice(-LOOP_WINDOW);
+        posWindowRef.current = [...posWindowRef.current, posKey].slice(-LOOP_WINDOW);
         const stateCount = windowRef.current.filter(s => s === stateKey).length;
+        const positionFrozen = posWindowRef.current.length >= LOOP_WINDOW &&
+            posWindowRef.current.every(s => s === posKey);
 
-        if (stateCount >= LOOP_THRESHOLD || turnCountRef.current >= MAX_TURNS) {
+        if (stateCount >= LOOP_THRESHOLD || positionFrozen || turnCountRef.current >= MAX_TURNS) {
             setCurrentGameWinner("Draw");
             setGameOver(true);
             if (gamesCompleted + 1 >= TOTAL_GAMES) {
@@ -351,6 +366,8 @@ const downloadPerTurnStats = () => {
         turnCountRef.current = 0;
         player1StateWindowRef.current = [];
         player2StateWindowRef.current = [];
+        player1PosWindowRef.current = [];
+        player2PosWindowRef.current = [];
         setGameOver(false);
         setStats({
             player1Times: [],
