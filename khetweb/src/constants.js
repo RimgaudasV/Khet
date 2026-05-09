@@ -3,6 +3,7 @@ export const HEURISTICS = [
     { key: "PharaohAlignment",  label: "Pharaoh alignment" },
     { key: "PieceSquareTables", label: "Piece-square tables" },
     { key: "LaserEntry",        label: "Laser entry" },
+    { key: "Mobility",          label: "Mobility" },
 ];
 
 export const DEFAULT_WEIGHTS = Object.fromEntries(HEURISTICS.map(h => [h.key, 1.0]));

@@ -18,7 +18,7 @@ export default function PlayerSettings({
 }) {
     const handleWeightChange = (key, raw) => {
         const val = parseFloat(raw);
-        setWeights(prev => ({ ...prev, [key]: isNaN(val) ? 0 : Math.min(1, Math.max(0, val)) }));
+        setWeights(prev => ({ ...prev, [key]: isNaN(val) ? 0 : Math.min(1, Math.max(-1, val)) }));
     };
 
     const handlePieceValueChange = (setter) => (e) => {
@@ -71,7 +71,7 @@ export default function PlayerSettings({
                                         {label}:
                                         <input
                                             type="number"
-                                            min="0"
+                                            min="-1"
                                             max="1"
                                             step="0.1"
                                             value={weights[key] ?? 1.0}

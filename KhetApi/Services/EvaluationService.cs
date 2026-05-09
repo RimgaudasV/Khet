@@ -28,6 +28,8 @@ public class EvaluationService : IEvaluationService
             score += pstW * EvaluatePieceSquareTables(boardInfo.Pieces, rootPlayer);
         if (evalConfig.Weights.TryGetValue("LaserEntry", out var laserW) && laserW != 0)
             score += laserW * EvaluateLaserEntry(board, rootPlayer, boardInfo.Pieces);
+        if (evalConfig.Weights.TryGetValue("Mobility", out var mobilityW) && mobilityW != 0)
+            score += mobilityW * EvaluateMobility(board, boardInfo.Pieces, rootPlayer);
 
         score += Random.Shared.NextDouble();
         //score += Random.Shared.Next(-1, 5);
@@ -121,9 +123,6 @@ public class EvaluationService : IEvaluationService
         return score;
     }
 
-
-    // Row 0 = Player1's home edge (bottom), row 7 = enemy edge (top).
-    // Player2's table is this rotated 180°: PST[7-y][9-x].
     private static readonly int[,] AnubisPst =
     {
         { 3, 3, 2, 2, 1, 1, 2, 2, 3, 3 },
@@ -161,8 +160,8 @@ public class EvaluationService : IEvaluationService
             };
             if (pst == null) continue;
 
-            int py = piece.Owner == Player.Player1 ? 7 - pos.Y : pos.Y;
-            int px = piece.Owner == Player.Player1 ? 9 - pos.X : pos.X;
+            int py = piece.Owner == Player.Player1 ? pos.Y : 7 - pos.Y;
+            int px = piece.Owner == Player.Player1 ? pos.X : 9 - pos.X;
 
             int value = pst[py, px];
             score += piece.Owner == rootPlayer ? value : -value;
@@ -223,6 +222,40 @@ public class EvaluationService : IEvaluationService
         if (ySupporter != null)
             score += 2 + AxisPressure(ySupporter.Y, enemyPharaohPos.Y);
 
+        return score;
+    }
+
+
+    private static readonly int[] MobilityDx = { -1, -1, -1,  0, 0,  1, 1, 1 };
+    private static readonly int[] MobilityDy = { -1,  0,  1, -1, 1, -1, 0, 1 };
+
+    private int EvaluateMobility(BoardModel board, List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    {
+        int score = 0;
+        foreach (var (piece, pos) in pieces)
+        {
+            if (!piece.IsMovable) continue;
+
+            int mobility = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                var neighbor = new Position(pos.X + MobilityDx[i], pos.Y + MobilityDy[i]);
+                if (!board.IsInsideBoard(neighbor)) continue;
+
+                var cell = board.Cells[neighbor.Y][neighbor.X];
+                if (cell.IsDisabled && cell.DisabledFor == piece.Owner) continue;
+
+                var occupant = cell.Piece;
+                if (occupant == null)
+                    mobility++;
+                else if (piece.Type == PieceType.Scarab
+                      && occupant.Owner != piece.Owner
+                      && (occupant.Type == PieceType.Pyramid || occupant.Type == PieceType.Anubis))
+                    mobility++;
+            }
+
+            score += piece.Owner == rootPlayer ? mobility : -mobility;
+        }
         return score;
     }
 
