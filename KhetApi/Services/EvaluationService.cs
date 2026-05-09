@@ -24,10 +24,10 @@ public class EvaluationService : IEvaluationService
         //score += EvaluatePhaseSpecific(board, boardInfo.Pieces, rootPlayer, phase);
         if (evalConfig.UsePharaohAlignment)
             score += EvaluatePharaohAlignment(boardInfo, rootPlayer);
-        if (evalConfig.UseSphinxAxisPresence)
-            score += EvaluateSphinxAxisPresence(board, rootPlayer, boardInfo.Pieces);
-        if (evalConfig.UseSphinxDistance)
-            score += EvaluateSphinxDistance(board, rootPlayer, boardInfo.Pieces);
+        if (evalConfig.UsePieceSquareTables)
+            score += EvaluatePieceSquareTables(boardInfo.Pieces, rootPlayer);
+        if (evalConfig.UseLaserEntry)
+            score += EvaluateLaserEntry(board, rootPlayer, boardInfo.Pieces);
         //score += EvaluatePharaohThreats(boardInfo.PharaohPosition, board, rootPlayer);
 
         score += Random.Shared.NextDouble();
@@ -123,6 +123,55 @@ public class EvaluationService : IEvaluationService
     }
 
 
+    // Row 0 = Player1's home edge (bottom), row 7 = enemy edge (top).
+    // Player2's table is this rotated 180°: PST[7-y][9-x].
+    private static readonly int[,] AnubisPst =
+    {
+        { 3, 3, 2, 2, 1, 1, 2, 2, 3, 3 },
+        { 2, 2, 2, 1, 1, 1, 1, 2, 2, 2 },
+        { 1, 1, 0, 0, 0, 0, 0, 0, 1, 1 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 1, 1, 0, 0, 0, 0, 0, 0, 1, 1 },
+        { 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 },
+        { 2, 2, 1, 1, 1, 1, 1, 1, 2, 2 },
+    };
+
+    private static readonly int[,] PharaohPst =
+    {
+        {  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+        {  0, -1, -1, -2, -2, -2, -2, -1, -1,  0 },
+        {  0, -1, -2, -3, -3, -3, -3, -2, -1,  0 },
+        {  0, -1, -2, -3, -4, -4, -3, -2, -1,  0 },
+        {  0, -1, -2, -3, -4, -4, -3, -2, -1,  0 },
+        {  0, -1, -2, -3, -3, -3, -3, -2, -1,  0 },
+        {  0, -1, -1, -2, -2, -2, -2, -1, -1,  0 },
+        {  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+    };
+
+    private int EvaluatePieceSquareTables(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    {
+        int score = 0;
+        foreach (var (piece, pos) in pieces)
+        {
+            int[,]? pst = piece.Type switch
+            {
+                PieceType.Anubis  => AnubisPst,
+                PieceType.Pharaoh => PharaohPst,
+                _ => null
+            };
+            if (pst == null) continue;
+
+            int py = piece.Owner == Player.Player1 ? 7 - pos.Y : pos.Y;
+            int px = piece.Owner == Player.Player1 ? 9 - pos.X : pos.X;
+
+            int value = pst[py, px];
+            score += piece.Owner == rootPlayer ? value : -value;
+        }
+        return score;
+    }
+
+
     private Position? FindFirstSupporterOnAxis(BoardModel board, Player rootPlayer, Axis axis)
     {
         Position sphinxPos = rootPlayer == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
@@ -152,7 +201,7 @@ public class EvaluationService : IEvaluationService
     }
 
 
-    private int EvaluateSphinxAxisPresence(BoardModel board, Player rootPlayer, List<(PieceModel piece, Position pos)> pieces)
+    private int EvaluateLaserEntry(BoardModel board, Player rootPlayer, List<(PieceModel piece, Position pos)> pieces)
     {
         Position? enemyPharaohPos = null;
         foreach (var (piece, pos) in pieces)
@@ -179,41 +228,10 @@ public class EvaluationService : IEvaluationService
     }
 
 
-    private int EvaluateSphinxDistance(BoardModel board, Player rootPlayer, List<(PieceModel piece, Position pos)> pieces)
-    {
-        Position sphinxPos = rootPlayer == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
-        int score = 0;
-
-        var xSupporter = FindFirstSupporterOnAxis(board, rootPlayer, Axis.X);
-        if (xSupporter != null)
-            score -= TooClosePenalty(Axis.X, sphinxPos, xSupporter);
-
-        var ySupporter = FindFirstSupporterOnAxis(board, rootPlayer, Axis.Y);
-        if (ySupporter != null)
-            score -= TooClosePenalty(Axis.Y, sphinxPos, ySupporter);
-
-        return score;
-    }
-
-
     private int AxisPressure(int supportCoord, int enemyCoord)
     {
         int distance = Math.Abs(supportCoord - enemyCoord);
         return Math.Max(0, 6 - distance);
-    }
-
-    private int TooClosePenalty(Axis axis, Position sphinx, Position piece)
-    {
-        if (axis == Axis.Y)
-        {
-            int dist = Math.Abs(sphinx.Y - piece.Y);
-            return dist < 3 ? 3 : 0;
-        }
-        else
-        {
-            int dist = Math.Abs(sphinx.X - piece.X);
-            return dist < 3 ? 3 : 0;
-        }
     }
 
 

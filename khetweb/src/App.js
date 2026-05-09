@@ -58,20 +58,20 @@ function App() {
         const saved = localStorage.getItem('playerTwoEvalAlignment');
         return saved !== null ? JSON.parse(saved) : true;
     });
-    const [playerOneEvalSphinxAxis, setPlayerOneEvalSphinxAxis] = useState(() => {
-        const saved = localStorage.getItem('playerOneEvalSphinxAxis');
+    const [playerOneEvalPst, setPlayerOneEvalPst] = useState(() => {
+        const saved = localStorage.getItem('playerOneEvalPst');
         return saved !== null ? JSON.parse(saved) : true;
     });
-    const [playerTwoEvalSphinxAxis, setPlayerTwoEvalSphinxAxis] = useState(() => {
-        const saved = localStorage.getItem('playerTwoEvalSphinxAxis');
+    const [playerTwoEvalPst, setPlayerTwoEvalPst] = useState(() => {
+        const saved = localStorage.getItem('playerTwoEvalPst');
         return saved !== null ? JSON.parse(saved) : true;
     });
-    const [playerOneEvalSphinxDistance, setPlayerOneEvalSphinxDistance] = useState(() => {
-        const saved = localStorage.getItem('playerOneEvalSphinxDistance');
+    const [playerOneEvalLaserEntry, setPlayerOneEvalLaserEntry] = useState(() => {
+        const saved = localStorage.getItem('playerOneEvalLaserEntry');
         return saved !== null ? JSON.parse(saved) : true;
     });
-    const [playerTwoEvalSphinxDistance, setPlayerTwoEvalSphinxDistance] = useState(() => {
-        const saved = localStorage.getItem('playerTwoEvalSphinxDistance');
+    const [playerTwoEvalLaserEntry, setPlayerTwoEvalLaserEntry] = useState(() => {
+        const saved = localStorage.getItem('playerTwoEvalLaserEntry');
         return saved !== null ? JSON.parse(saved) : true;
     });
     const [playerOnePieceValuePyramid, setPlayerOnePieceValuePyramid] = useState(() => {
@@ -135,17 +135,17 @@ function App() {
         localStorage.setItem('playerTwoEvalAlignment', JSON.stringify(playerTwoEvalAlignment));
     }, [playerTwoEvalAlignment]);
     useEffect(() => {
-        localStorage.setItem('playerOneEvalSphinxAxis', JSON.stringify(playerOneEvalSphinxAxis));
-    }, [playerOneEvalSphinxAxis]);
+        localStorage.setItem('playerOneEvalPst', JSON.stringify(playerOneEvalPst));
+    }, [playerOneEvalPst]);
     useEffect(() => {
-        localStorage.setItem('playerTwoEvalSphinxAxis', JSON.stringify(playerTwoEvalSphinxAxis));
-    }, [playerTwoEvalSphinxAxis]);
+        localStorage.setItem('playerTwoEvalPst', JSON.stringify(playerTwoEvalPst));
+    }, [playerTwoEvalPst]);
     useEffect(() => {
-        localStorage.setItem('playerOneEvalSphinxDistance', JSON.stringify(playerOneEvalSphinxDistance));
-    }, [playerOneEvalSphinxDistance]);
+        localStorage.setItem('playerOneEvalLaserEntry', JSON.stringify(playerOneEvalLaserEntry));
+    }, [playerOneEvalLaserEntry]);
     useEffect(() => {
-        localStorage.setItem('playerTwoEvalSphinxDistance', JSON.stringify(playerTwoEvalSphinxDistance));
-    }, [playerTwoEvalSphinxDistance]);
+        localStorage.setItem('playerTwoEvalLaserEntry', JSON.stringify(playerTwoEvalLaserEntry));
+    }, [playerTwoEvalLaserEntry]);
     useEffect(() => {
         localStorage.setItem('playerOnePieceValuePyramid', playerOnePieceValuePyramid.toString());
     }, [playerOnePieceValuePyramid]);
@@ -188,10 +188,10 @@ function App() {
         playerTwoEvalMaterial,
         playerOneEvalAlignment,
         playerTwoEvalAlignment,
-        playerOneEvalSphinxAxis,
-        playerTwoEvalSphinxAxis,
-        playerOneEvalSphinxDistance,
-        playerTwoEvalSphinxDistance,
+        playerOneEvalPst,
+        playerTwoEvalPst,
+        playerOneEvalLaserEntry,
+        playerTwoEvalLaserEntry,
         playerOnePieceValuePyramid,
         playerTwoPieceValuePyramid,
         playerOnePieceValueAnubis,
@@ -232,14 +232,14 @@ return (
                 setPlayerOneEvalAlignment={setPlayerOneEvalAlignment}
                 playerTwoEvalAlignment={playerTwoEvalAlignment}
                 setPlayerTwoEvalAlignment={setPlayerTwoEvalAlignment}
-                playerOneEvalSphinxAxis={playerOneEvalSphinxAxis}
-                setPlayerOneEvalSphinxAxis={setPlayerOneEvalSphinxAxis}
-                playerTwoEvalSphinxAxis={playerTwoEvalSphinxAxis}
-                setPlayerTwoEvalSphinxAxis={setPlayerTwoEvalSphinxAxis}
-                playerOneEvalSphinxDistance={playerOneEvalSphinxDistance}
-                setPlayerOneEvalSphinxDistance={setPlayerOneEvalSphinxDistance}
-                playerTwoEvalSphinxDistance={playerTwoEvalSphinxDistance}
-                setPlayerTwoEvalSphinxDistance={setPlayerTwoEvalSphinxDistance}
+                playerOneEvalPst={playerOneEvalPst}
+                setPlayerOneEvalPst={setPlayerOneEvalPst}
+                playerTwoEvalPst={playerTwoEvalPst}
+                setPlayerTwoEvalPst={setPlayerTwoEvalPst}
+                playerOneEvalLaserEntry={playerOneEvalLaserEntry}
+                setPlayerOneEvalLaserEntry={setPlayerOneEvalLaserEntry}
+                playerTwoEvalLaserEntry={playerTwoEvalLaserEntry}
+                setPlayerTwoEvalLaserEntry={setPlayerTwoEvalLaserEntry}
                 playerOnePieceValuePyramid={playerOnePieceValuePyramid}
                 setPlayerOnePieceValuePyramid={setPlayerOnePieceValuePyramid}
                 playerTwoPieceValuePyramid={playerTwoPieceValuePyramid}

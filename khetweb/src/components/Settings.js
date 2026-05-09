@@ -31,14 +31,15 @@ export default function Settings({
     setPlayerOneEvalAlignment,
     playerTwoEvalAlignment,
     setPlayerTwoEvalAlignment,
-    playerOneEvalSphinxAxis,
-    setPlayerOneEvalSphinxAxis,
-    playerTwoEvalSphinxAxis,
-    setPlayerTwoEvalSphinxAxis,
-    playerOneEvalSphinxDistance,
-    setPlayerOneEvalSphinxDistance,
-    playerTwoEvalSphinxDistance,
-    setPlayerTwoEvalSphinxDistance,
+    playerOneEvalPst,
+    setPlayerOneEvalPst,
+    playerTwoEvalPst,
+    setPlayerTwoEvalPst,
+    playerOneEvalLaserEntry,
+    setPlayerOneEvalLaserEntry,
+    playerTwoEvalLaserEntry,
+    setPlayerTwoEvalLaserEntry,
+
     playerOnePieceValuePyramid,
     setPlayerOnePieceValuePyramid,
     playerTwoPieceValuePyramid,
@@ -119,16 +120,16 @@ export default function Settings({
                                 Pharaoh alignment
                             </label>
                             <label className="checkbox-label">
-                                <input type="checkbox" checked={playerOneEvalSphinxAxis}
-                                    onChange={(e) => setPlayerOneEvalSphinxAxis(e.target.checked)}
+                                <input type="checkbox" checked={playerOneEvalPst}
+                                    onChange={(e) => setPlayerOneEvalPst(e.target.checked)}
                                     disabled={gameStarted} />
-                                Sphinx axis presence
+                                Piece-square tables
                             </label>
                             <label className="checkbox-label">
-                                <input type="checkbox" checked={playerOneEvalSphinxDistance}
-                                    onChange={(e) => setPlayerOneEvalSphinxDistance(e.target.checked)}
+                                <input type="checkbox" checked={playerOneEvalLaserEntry}
+                                    onChange={(e) => setPlayerOneEvalLaserEntry(e.target.checked)}
                                     disabled={gameStarted} />
-                                Sphinx distance
+                                Laser entry
                             </label>
                         </div>
                     </div>
@@ -193,16 +194,16 @@ export default function Settings({
                                 Pharaoh alignment
                             </label>
                             <label className="checkbox-label">
-                                <input type="checkbox" checked={playerTwoEvalSphinxAxis}
-                                    onChange={(e) => setPlayerTwoEvalSphinxAxis(e.target.checked)}
+                                <input type="checkbox" checked={playerTwoEvalPst}
+                                    onChange={(e) => setPlayerTwoEvalPst(e.target.checked)}
                                     disabled={gameStarted} />
-                                Sphinx axis presence
+                                Piece-square tables
                             </label>
                             <label className="checkbox-label">
-                                <input type="checkbox" checked={playerTwoEvalSphinxDistance}
-                                    onChange={(e) => setPlayerTwoEvalSphinxDistance(e.target.checked)}
+                                <input type="checkbox" checked={playerTwoEvalLaserEntry}
+                                    onChange={(e) => setPlayerTwoEvalLaserEntry(e.target.checked)}
                                     disabled={gameStarted} />
-                                Sphinx distance
+                                Laser entry
                             </label>
                         </div>
                     </div>
