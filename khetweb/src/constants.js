@@ -5,6 +5,7 @@ export const HEURISTICS = [
     { key: "LaserEntry",        label: "Laser entry" },
     { key: "Mobility",          label: "Mobility" },
     { key: "LaserReflectorAlignment", label: "Laser reflector alignment" },
+    { key: "LaserLength",             label: "Laser length" },
 ];
 
 export const DEFAULT_WEIGHTS = Object.fromEntries(HEURISTICS.map(h => [h.key, 1.0]));

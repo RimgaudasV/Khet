@@ -6,7 +6,7 @@ using KhetApi.Models.Move;
 using KhetApi.Models.Piece;
 using KhetApi.Requests;
 using KhetApi.Responses;
-using System.Diagnostics;
+using KhetApi.Utils;
 
 namespace KhetApi.Services;
 
@@ -21,6 +21,7 @@ public class GameService(IEvaluationService evaluationService) : IGameService
     private int ALL_MOVES_COUNT = 0;
     private int ALL_ROUTES_COUNT = 0;
     private int EVALUATED_ROUTES_COUNT = 0;
+    private const double BEST_MOVE_THRESHOLD = 1.0;
 
 
     public GameResponse StartGame()
@@ -36,67 +37,46 @@ public class GameService(IEvaluationService evaluationService) : IGameService
 
     public ImpactResultModel MakeMove(MoveRequest request)
     {
-        var board = request.Board;
-        
-        var piece = board.GetPieceAt(request.CurrentPosition)
-            ?? throw new InvalidOperationException("No piece found at the current position.");
-        var targetPiece = board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece;
-
-        if (piece.Type == PieceType.Scarab && targetPiece is not null)
-        {
-            board.Cells[request.CurrentPosition.Y][request.CurrentPosition.X].Piece = targetPiece;
-            board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece = piece;
-        }
-        else
-        {
-            board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece = piece;
-            board.Cells[request.CurrentPosition.Y][request.CurrentPosition.X].Piece = null;
-        }
-
+        DoMove(request.Board, request.CurrentPosition, request.NewPosition);
         return ApplyImpacts(request.Board, request.Player);
-
     }
 
     private UndoState MakeMoveInPlace(BoardModel board, Player player, Move move)
     {
-        var undo = new UndoState
-        {
-            From = move.From,
-            To = move.To
-        };
+        var undo = new UndoState { From = move.From, To = move.To };
 
         if (move.Rotation == null)
-        {
-            var fromCell = board.Cells[move.From.Y][move.From.X];
-            var toCell = board.Cells[move.To.Y][move.To.X];
-
-            var movingPiece = fromCell.Piece;
-            var targetPiece = toCell.Piece;
-
-            undo.Captured = targetPiece;
-
-            if (movingPiece.Type == PieceType.Scarab && targetPiece != null)
-            {
-                toCell.Piece = movingPiece;
-                fromCell.Piece = targetPiece;
-            }
-            else
-            {
-                toCell.Piece = movingPiece;
-                fromCell.Piece = null;
-            }
-        }
+            undo.Captured = DoMove(board, move.From, move.To);
         else
-        {
-            var piece = board.GetPieceAt(move.From)!;
-            undo.OldRotation = piece.Rotation;
-            piece.Rotation = move.Rotation.Value;
-        }
+            undo.OldRotation = DoRotate(board, move.From, move.Rotation.Value);
 
         var impact = ApplyImpacts(board, player);
         undo.Destroyed = impact.DestroyedPiece;
 
         return undo;
+    }
+
+    private static PieceModel? DoMove(BoardModel board, Position from, Position to)
+    {
+        var fromCell = board.Cells[from.Y][from.X];
+        var toCell   = board.Cells[to.Y][to.X];
+        var moving   = fromCell.Piece!;
+        var target   = toCell.Piece;
+
+        if (moving.Type == PieceType.Scarab && target != null)
+            (toCell.Piece, fromCell.Piece) = (moving, target);
+        else
+            (toCell.Piece, fromCell.Piece) = (moving, null);
+
+        return target;
+    }
+
+    private static Rotation DoRotate(BoardModel board, Position pos, Rotation rotation)
+    {
+        var piece = board.GetPieceAt(pos)!;
+        var old = piece.Rotation;
+        piece.Rotation = rotation;
+        return old;
     }
     private void UndoMove(BoardModel board, UndoState undo)
     {
@@ -130,131 +110,67 @@ public class GameService(IEvaluationService evaluationService) : IGameService
 
     public ImpactResultModel Rotate(RotationRequest request)
     {
-        var piece = request.Board.GetPieceAt(request.CurrentPosition)
-            ?? throw new InvalidOperationException("No piece found at the current position.");
-        piece.Rotation = request.NewRotation;
-
+        DoRotate(request.Board, request.CurrentPosition, request.NewRotation);
         return ApplyImpacts(request.Board, request.Player);
     }
 
     private ImpactResultModel ApplyImpacts(BoardModel board, Player player)
     {
-        var currentPosition = player == Player.Player1
-            ? new Position(9, 7)
-            : new Position(0, 0);
+        var origin = GetLaserStart(board, player);
+        var trace  = TraceLaserPath(board, origin.Pos, origin.Dir);
+        var hit    = trace.HitPiece != null
+            ? ResolveHit(board, trace.HitPiece, trace.HitPos!, trace.HitDir)
+            : new LaserHitResult(null, false);
 
-        var laserDirection = RotationMapper.ToLaserDirection(board.GetPieceAt(currentPosition).Rotation);
+        return new ImpactResultModel(board, trace.Path, hit.GameOver, GetNextPlayer(player), hit.Destroyed);
+    }
 
-        var laserPath = new List<Position> { currentPosition };
+    private static LaserOrigin GetLaserStart(BoardModel board, Player player)
+    {
+        var pos = player == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
+        var dir = RotationMapper.ToLaserDirection(board.GetPieceAt(pos)!.Rotation);
+        return new LaserOrigin(pos, dir);
+    }
 
-        bool gameOver = false;
-        DestroyedPiece? destroyedPiece = null;
+    private static LaserTraceResult TraceLaserPath(BoardModel board, Position pos, LaserDirection dir)
+    {
+        var path = new List<Position> { pos };
 
         while (true)
         {
-            currentPosition = MoveOneStep(currentPosition, laserDirection);
+            pos = LaserUtil.Step(pos, dir);
+            if (!board.IsInsideBoard(pos)) break;
 
-            if (!board.IsInsideBoard(currentPosition))
-                break;
+            path.Add(pos);
 
-            laserPath.Add(currentPosition);
+            var cell = board.Cells[pos.Y][pos.X];
+            if (cell.IsDisabled && cell.Piece == null) continue;
 
-            var cell = board.Cells[currentPosition.Y][currentPosition.X];
             var piece = cell.Piece;
+            if (piece == null) continue;
 
-            if (cell.IsDisabled && piece == null)
-                continue;
-
-            if (piece != null)
-            {
-                var impact = CalculateImpact(laserDirection, piece);
-
-                if (impact.DestroyPiece)
-                {
-                    destroyedPiece = new DestroyedPiece { 
-                        Type = piece.Type,
-                        Owner = piece.Owner,
-                        Position = currentPosition,
-                        Rotation = piece.Rotation
-                    };
-                    board.RemovePiece(currentPosition);
-                    if (impact.GameOver)
-                    {
-                        return new ImpactResultModel(board, laserPath, true, GetNextPlayer(player), destroyedPiece);
-                    }
-                    break;
-                }
-
-                if (impact.NewDirection is null)
-                {
-                    break;
-                }
-                laserDirection = impact.NewDirection.Value;
-            }
+            var reflected = LaserUtil.Reflect(dir, piece);
+            if (reflected == null) return new LaserTraceResult(path, piece, pos, dir);
+            dir = reflected.Value;
         }
-        var nextPlayer = GetNextPlayer(player);
 
-        return new ImpactResultModel (board, laserPath, gameOver, nextPlayer, destroyedPiece);
+        return new LaserTraceResult(path, null, null, dir);
     }
 
-    private Position MoveOneStep(Position pos, LaserDirection dir) => dir switch
+    private static LaserHitResult ResolveHit(BoardModel board, PieceModel piece, Position pos, LaserDirection dir)
     {
-        LaserDirection.Up => new Position(pos.X, pos.Y - 1),
-        LaserDirection.Right => new Position(pos.X + 1, pos.Y),
-        LaserDirection.Down => new Position(pos.X, pos.Y + 1),
-        LaserDirection.Left => new Position(pos.X - 1, pos.Y),
-        _ => throw new InvalidOperationException("Invalid laser direction.")
-    };
+        var result = LaserUtil.LaserPieceInteraction(dir, piece);
+        if (!result.DestroyPiece) return new LaserHitResult(null, false);
 
-    private ImpactResult CalculateImpact(LaserDirection laserDir, PieceModel piece)
-    {
-        return (laserDir, piece.Rotation, piece.Type) switch
+        var destroyed = new DestroyedPiece
         {
-            // PYRAMID REFLECTIONS
-            (LaserDirection.Up, Rotation.LeftDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Left, false, false),
-            (LaserDirection.Up, Rotation.RightDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Right, false, false),
-
-            (LaserDirection.Down, Rotation.LeftUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Left, false, false),
-            (LaserDirection.Down, Rotation.RightUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Right, false, false),
-
-            (LaserDirection.Left, Rotation.RightDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Left, Rotation.RightUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Up, false, false),
-
-            (LaserDirection.Right, Rotation.LeftDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Right, Rotation.LeftUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Up, false, false),
-
-            // SCARAB REFLECTIONS
-            // RightUp rotation
-            (LaserDirection.Up, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Left, false, false),
-            (LaserDirection.Left, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Up, false, false),
-            (LaserDirection.Right, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Down, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Right, false, false),
-
-            // LeftUp rotation
-            (LaserDirection.Up, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Right, false, false),
-            (LaserDirection.Right, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Up, false, false),
-            (LaserDirection.Left, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Down, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Left, false, false),
-
-
-            // Sphinx
-            (_, _, PieceType.Sphinx) => new ImpactResult(null, false, false),
-
-            // ANUBIS 
-            (LaserDirection.Down, Rotation.Up, PieceType.Anubis) => new ImpactResult(null, false, false),
-            (LaserDirection.Up, Rotation.Down, PieceType.Anubis) => new ImpactResult(null, false, false),
-            (LaserDirection.Left, Rotation.Right, PieceType.Anubis) => new ImpactResult(null, false, false),
-            (LaserDirection.Right, Rotation.Left, PieceType.Anubis) => new ImpactResult(null, false, false),
-
-            //Not destoyed but no reflection either
-            (_, _, PieceType.Anubis) => new ImpactResult(null, true, false),
-
-            // PHARAOH → game over
-            (_, _, PieceType.Pharaoh) => new ImpactResult(null, true, true),
-
-            // ALL OTHER PIECES → destroyed
-            (_, _, _) => new ImpactResult(laserDir, true, false)
+            Type     = piece.Type,
+            Owner    = piece.Owner,
+            Position = pos,
+            Rotation = piece.Rotation
         };
+        board.RemovePiece(pos);
+        return new LaserHitResult(destroyed, result.GameOver);
     }
 
     public Player GetNextPlayer(Player player)
@@ -418,8 +334,6 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         };
     }
 
-    private const double BEST_MOVE_THRESHOLD = 1.0;
-
     private Move FindBestMove(BoardModel board, Player player, List<Move> rootMoves)
     {
         var scores = new double[rootMoves.Count];
@@ -466,10 +380,14 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         return candidates[Random.Shared.Next(candidates.Count)];
     }
 
-    private ImpactResultModel ApplyMove(BoardModel board, Player player, Move move) =>
-        move.Rotation != null
-            ? Rotate(new RotationRequest { Board = board, Player = player, CurrentPosition = move.From, NewRotation = move.Rotation.Value })
-            : MakeMove(new MoveRequest { Board = board, Player = player, CurrentPosition = move.From, NewPosition = move.To });
+    private ImpactResultModel ApplyMove(BoardModel board, Player player, Move move)
+    {
+        if (move.Rotation != null)
+            DoRotate(board, move.From, move.Rotation.Value);
+        else
+            DoMove(board, move.From, move.To);
+        return ApplyImpacts(board, player);
+    }
 
     private double AlphaBetaSearch(BoardModel board, Player player, int depth, double alpha, double beta, bool gameOver, Player rootPlayer, Player? winner = null)
     {

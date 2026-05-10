@@ -2,6 +2,7 @@
 using KhetApi.Models;
 using KhetApi.Models.Board;
 using KhetApi.Models.Piece;
+using KhetApi.Utils;
 
 namespace KhetApi.Services;
 
@@ -32,6 +33,8 @@ public class EvaluationService : IEvaluationService
             score += mobilityW * EvaluateMobility(board, boardInfo.Pieces, rootPlayer);
         if (evalConfig.Weights.TryGetValue("LaserReflectorAlignment", out var lraW) && lraW != 0)
             score += lraW * EvaluateLaserReflectorAlignment(board, boardInfo.Pieces, rootPlayer);
+        if (evalConfig.Weights.TryGetValue("LaserLength", out var llW) && llW != 0)
+            score += llW * EvaluateLaserLength(board, rootPlayer);
 
         return score;
     }
@@ -486,6 +489,13 @@ public class EvaluationService : IEvaluationService
                 if (board.Cells[a.Y][x].Piece != null) return false;
         }
         return true;
+    }
+
+
+    private static double EvaluateLaserLength(BoardModel board, Player rootPlayer)
+    {
+        var opponent = rootPlayer == Player.Player1 ? Player.Player2 : Player.Player1;
+        return 0.5 * (LaserUtil.TraceLength(board, rootPlayer) - LaserUtil.TraceLength(board, opponent));
     }
 
 
