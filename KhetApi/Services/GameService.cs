@@ -21,7 +21,7 @@ public class GameService(IEvaluationService evaluationService) : IGameService
     private int ALL_MOVES_COUNT = 0;
     private int ALL_ROUTES_COUNT = 0;
     private int EVALUATED_ROUTES_COUNT = 0;
-    private const double BEST_MOVE_THRESHOLD = 1.0;
+    private const double BEST_MOVE_THRESHOLD = 0.5;
 
 
     public GameResponse StartGame()
@@ -116,45 +116,13 @@ public class GameService(IEvaluationService evaluationService) : IGameService
 
     private ImpactResultModel ApplyImpacts(BoardModel board, Player player)
     {
-        var origin = GetLaserStart(board, player);
-        var trace  = TraceLaserPath(board, origin.Pos, origin.Dir);
+        var origin = LaserUtil.GetLaserStart(board, player);
+        var trace  = LaserUtil.TraceLaserPath(board, origin.Pos, origin.Dir);
         var hit    = trace.HitPiece != null
             ? ResolveHit(board, trace.HitPiece, trace.HitPos!, trace.HitDir)
             : new LaserHitResult(null, false);
 
         return new ImpactResultModel(board, trace.Path, hit.GameOver, GetNextPlayer(player), hit.Destroyed);
-    }
-
-    private static LaserOrigin GetLaserStart(BoardModel board, Player player)
-    {
-        var pos = player == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
-        var dir = RotationMapper.ToLaserDirection(board.GetPieceAt(pos)!.Rotation);
-        return new LaserOrigin(pos, dir);
-    }
-
-    private static LaserTraceResult TraceLaserPath(BoardModel board, Position pos, LaserDirection dir)
-    {
-        var path = new List<Position> { pos };
-
-        while (true)
-        {
-            pos = LaserUtil.Step(pos, dir);
-            if (!board.IsInsideBoard(pos)) break;
-
-            path.Add(pos);
-
-            var cell = board.Cells[pos.Y][pos.X];
-            if (cell.IsDisabled && cell.Piece == null) continue;
-
-            var piece = cell.Piece;
-            if (piece == null) continue;
-
-            var reflected = LaserUtil.Reflect(dir, piece);
-            if (reflected == null) return new LaserTraceResult(path, piece, pos, dir);
-            dir = reflected.Value;
-        }
-
-        return new LaserTraceResult(path, null, null, dir);
     }
 
     private static LaserHitResult ResolveHit(BoardModel board, PieceModel piece, Position pos, LaserDirection dir)

@@ -1,6 +1,7 @@
 using KhetApi.Mappers;
 using KhetApi.Models;
 using KhetApi.Models.Board;
+using KhetApi.Models.Move;
 using KhetApi.Models.Piece;
 using KhetApi.Services;
 
@@ -34,9 +35,6 @@ public static class LaserUtil
             _ => null
         };
 
-
-
-
     public static int TraceLength(BoardModel board, Player player)
     {
         var pos = player == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
@@ -60,7 +58,7 @@ public static class LaserUtil
         return cells;
     }
 
-    public static Position Step(Position pos, LaserDirection dir) => dir switch
+    private static Position Step(Position pos, LaserDirection dir) => dir switch
     {
         LaserDirection.Up    => new Position(pos.X, pos.Y - 1),
         LaserDirection.Down  => new Position(pos.X, pos.Y + 1),
@@ -88,5 +86,35 @@ public static class LaserUtil
             (LaserDirection.Left, Rotation.Right) or
             (LaserDirection.Right, Rotation.Left);
 
+    public static LaserOrigin GetLaserStart(BoardModel board, Player player)
+    {
+        var pos = player == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
+        var dir = RotationMapper.ToLaserDirection(board.GetPieceAt(pos)!.Rotation);
+        return new LaserOrigin(pos, dir);
+    }
 
+    public static LaserTraceResult TraceLaserPath(BoardModel board, Position pos, LaserDirection dir)
+    {
+        var path = new List<Position> { pos };
+
+        while (true)
+        {
+            pos = Step(pos, dir);
+            if (!board.IsInsideBoard(pos)) break;
+
+            path.Add(pos);
+
+            var cell = board.Cells[pos.Y][pos.X];
+            if (cell.IsDisabled && cell.Piece == null) continue;
+
+            var piece = cell.Piece;
+            if (piece == null) continue;
+
+            var reflected = Reflect(dir, piece);
+            if (reflected == null) return new LaserTraceResult(path, piece, pos, dir);
+            dir = reflected.Value;
+        }
+
+        return new LaserTraceResult(path, null, null, dir);
+    }
 }
