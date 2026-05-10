@@ -14,9 +14,6 @@ public class EvaluationService : IEvaluationService
             return EvaluateTerminalState(depth, winner, rootPlayer, maxDepth);
 
         var boardInfo = GetBoardInfo(board);
-        //var (rootCount, oppCount, total) = CountPieces(boardInfo.Pieces, rootPlayer);
-
-        //var phase = DetermineGamePhase(total, rootCount, oppCount);
 
         double score = 0;
 
@@ -28,7 +25,7 @@ public class EvaluationService : IEvaluationService
         if (evalConfig.Weights.TryGetValue("PieceSquareTables", out var pstWeight) && pstWeight != 0)
             score += pstWeight * EvaluatePieceSquareTables(boardInfo.Pieces, rootPlayer);
         if (evalConfig.Weights.TryGetValue("LaserEntry", out var laserEntryWeight) && laserEntryWeight != 0)
-            score += laserEntryWeight * EvaluateLaserEntry(board, rootPlayer, boardInfo.Pieces);
+            score += laserEntryWeight * EvaluateLaserEntry(board, rootPlayer, boardInfo);
         if (evalConfig.Weights.TryGetValue("Mobility", out var mobilityWeight) && mobilityWeight != 0)
             score += mobilityWeight * EvaluateMobility(board, boardInfo.Pieces, rootPlayer);
         if (evalConfig.Weights.TryGetValue("LaserReflectorAlignment", out var laserReflectorAlignmentWeight) && laserReflectorAlignmentWeight != 0)
@@ -101,22 +98,23 @@ public class EvaluationService : IEvaluationService
 
     private int EvaluatePharaohAlignment(BoardInfo boardInfo, Player rootPlayer)
     {
-        var oppPharaohPos = rootPlayer == Player.Player1
-            ? boardInfo.Player2PharaohPos
-            : boardInfo.Player1PharaohPos;
+        var opponent      = rootPlayer == Player.Player1 ? Player.Player2 : Player.Player1;
+        var oppPharaohPos  = rootPlayer == Player.Player1 ? boardInfo.Player2PharaohPos : boardInfo.Player1PharaohPos;
+        var rootPharaohPos = rootPlayer == Player.Player1 ? boardInfo.Player1PharaohPos : boardInfo.Player2PharaohPos;
 
-        if (oppPharaohPos == null)
-            return 0;
+        return PharaohAlignmentScore(boardInfo.Pieces, rootPlayer, oppPharaohPos)
+             - PharaohAlignmentScore(boardInfo.Pieces, opponent,   rootPharaohPos);
+    }
 
+    private static int PharaohAlignmentScore(List<(PieceModel piece, Position pos)> pieces, Player owner, Position? pharaohPos)
+    {
+        if (pharaohPos == null) return 0;
         int score = 0;
-
-        foreach (var (piece, pos) in boardInfo.Pieces)
+        foreach (var (piece, pos) in pieces)
         {
-            if (piece.Owner != rootPlayer) continue;
+            if (piece.Owner != owner) continue;
             if (piece.Type != PieceType.Pyramid && piece.Type != PieceType.Scarab) continue;
-
-            int proximity = Math.Max(Math.Abs(pos.X - oppPharaohPos.X), Math.Abs(pos.Y - oppPharaohPos.Y));
-
+            int proximity = Math.Max(Math.Abs(pos.X - pharaohPos.X), Math.Abs(pos.Y - pharaohPos.Y));
             score += proximity switch
             {
                 <= 1 => piece.Type == PieceType.Scarab ? 5 : 4,
@@ -124,7 +122,6 @@ public class EvaluationService : IEvaluationService
                 _    => 0
             };
         }
-
         return score;
     }
 
@@ -206,19 +203,21 @@ public class EvaluationService : IEvaluationService
 
     private int EvaluateLaserEntry(BoardModel board, Player rootPlayer, BoardInfo boardInfo)
     {
-        var enemyPharaohPos = rootPlayer == Player.Player1
-            ? boardInfo.Player2PharaohPos
-            : boardInfo.Player1PharaohPos;
+        var opponent = rootPlayer == Player.Player1 ? Player.Player2 : Player.Player1;
+        return LaserEntryScore(board, rootPlayer, boardInfo) - LaserEntryScore(board, opponent, boardInfo);
+    }
 
+    private int LaserEntryScore(BoardModel board, Player player, BoardInfo boardInfo)
+    {
+        var enemyPharaohPos = player == Player.Player1 ? boardInfo.Player2PharaohPos : boardInfo.Player1PharaohPos;
         if (enemyPharaohPos == null) return 0;
 
         int score = 0;
-
-        var xSupporter = FindFirstSupporterOnAxis(board, rootPlayer, Axis.X);
+        var xSupporter = FindFirstSupporterOnAxis(board, player, Axis.X);
         if (xSupporter != null)
             score += 2 + AxisPressure(xSupporter.X, enemyPharaohPos.X);
 
-        var ySupporter = FindFirstSupporterOnAxis(board, rootPlayer, Axis.Y);
+        var ySupporter = FindFirstSupporterOnAxis(board, player, Axis.Y);
         if (ySupporter != null)
             score += 2 + AxisPressure(ySupporter.Y, enemyPharaohPos.Y);
 
