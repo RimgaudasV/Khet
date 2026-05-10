@@ -58,15 +58,24 @@ public static class LaserUtil
         return cells;
     }
 
-    private static Position Step(Position pos, LaserDirection dir) => dir switch
+    public static (int dx, int dy) DirectionToDeltas(LaserDirection dir) => dir switch
     {
-        LaserDirection.Up    => new Position(pos.X, pos.Y - 1),
-        LaserDirection.Down  => new Position(pos.X, pos.Y + 1),
-        LaserDirection.Left  => new Position(pos.X - 1, pos.Y),
-        LaserDirection.Right => new Position(pos.X + 1, pos.Y),
-        _                    => pos
+        LaserDirection.Up    => ( 0, -1),
+        LaserDirection.Down  => ( 0,  1),
+        LaserDirection.Left  => (-1,  0),
+        LaserDirection.Right => ( 1,  0),
+        _                    => ( 0,  0)
     };
 
+    private static Position Step(Position pos, LaserDirection dir)
+    {
+        var (dx, dy) = DirectionToDeltas(dir);
+        return new Position(pos.X + dx, pos.Y + dy);
+    }
+
+
+    public static bool WouldKill(LaserDirection dir, PieceModel piece) =>
+        Reflect(dir, piece) == null && LaserPieceInteraction(dir, piece).DestroyPiece;
 
     public static ImpactResult LaserPieceInteraction(LaserDirection laserDir, PieceModel piece)
     {

@@ -36,7 +36,7 @@ public class EvaluationService : IEvaluationService
         if (evalConfig.Weights.TryGetValue("LaserLength", out var laserLengthWeight) && laserLengthWeight != 0)
             score += laserLengthWeight * EvaluateLaserLength(board, rootPlayer);
         if (evalConfig.Weights.TryGetValue("DefensiveRotations", out var defensiveRotationsWeight) && defensiveRotationsWeight != 0)
-            score += defensiveRotationsWeight * EvaluateDefensiveRotations(boardInfo, rootPlayer);
+            score += defensiveRotationsWeight * EvaluateDefensiveRotations(boardInfo, board, rootPlayer);
 
         return score;
     }
@@ -68,23 +68,11 @@ public class EvaluationService : IEvaluationService
             }
         }
 
-        var byRow = new Dictionary<int, List<(PieceModel, Position)>>();
-        var byCol = new Dictionary<int, List<(PieceModel, Position)>>();
-        foreach (var (piece, pos) in pieces)
-        {
-            if (!byRow.TryGetValue(pos.Y, out var row)) { row = []; byRow[pos.Y] = row; }
-            row.Add((piece, pos));
-            if (!byCol.TryGetValue(pos.X, out var col)) { col = []; byCol[pos.X] = col; }
-            col.Add((piece, pos));
-        }
-
         return new BoardInfo
         {
             Pieces = pieces,
             Player1PharaohPos = player1PharaohPos,
-            Player2PharaohPos = player2PharaohPos,
-            ByRow = byRow,
-            ByCol = byCol
+            Player2PharaohPos = player2PharaohPos
         };
     }
 
@@ -463,17 +451,16 @@ public class EvaluationService : IEvaluationService
     {
         int score = 0;
 
-        var reflectors = pieces
-            .Where(p => p.piece.Type == PieceType.Pyramid || p.piece.Type == PieceType.Scarab)
-            .ToList();
-
-        for (int i = 0; i < reflectors.Count; i++)
+        for (int i = 0; i < pieces.Count; i++)
         {
-            var (piece, pos) = reflectors[i];
+            var (piece, pos) = pieces[i];
+            if (piece.Type != PieceType.Pyramid && piece.Type != PieceType.Scarab) continue;
+
             int alignCount = 0;
-            for (int j = i + 1; j < reflectors.Count; j++)
+            for (int j = i + 1; j < pieces.Count; j++)
             {
-                var (other, otherPos) = reflectors[j];
+                var (other, otherPos) = pieces[j];
+                if (other.Type != PieceType.Pyramid && other.Type != PieceType.Scarab) continue;
                 if (other.Owner != piece.Owner) continue;
                 if (otherPos.X == pos.X || otherPos.Y == pos.Y)
                     alignCount++;
@@ -493,7 +480,7 @@ public class EvaluationService : IEvaluationService
     }
 
 
-    private static int EvaluateDefensiveRotations(BoardInfo boardInfo, Player rootPlayer)
+    private static int EvaluateDefensiveRotations(BoardInfo boardInfo, BoardModel board, Player rootPlayer)
     {
         int score = 0;
 
@@ -507,12 +494,11 @@ public class EvaluationService : IEvaluationService
                 var reflected = LaserUtil.Reflect(dir, piece);
                 if (reflected == null) continue;
 
-                if (HasVulnerableFriendlyInLine(pos, reflected.Value, piece.Owner, boardInfo))
+                if (HasVulnerableFriendlyInLine(pos, reflected.Value, piece.Owner, board))
                     dangers++;
             }
 
-            var penalty = dangers * 3;
-            score += piece.Owner == rootPlayer ? -penalty : penalty;
+            score += piece.Owner == rootPlayer ? -dangers * 3 : dangers * 3;
         }
 
         return score;
@@ -521,53 +507,28 @@ public class EvaluationService : IEvaluationService
     private static readonly LaserDirection[] AllLaserDirections =
         [LaserDirection.Up, LaserDirection.Down, LaserDirection.Left, LaserDirection.Right];
 
-    private static bool HasVulnerableFriendlyInLine(Position from, LaserDirection dir, Player owner, BoardInfo boardInfo)
+    private static bool HasVulnerableFriendlyInLine(Position from, LaserDirection dir, Player owner, BoardModel board)
     {
-        var candidates = dir is LaserDirection.Right or LaserDirection.Left
-            ? boardInfo.ByRow.GetValueOrDefault(from.Y) ?? []
-            : boardInfo.ByCol.GetValueOrDefault(from.X) ?? [];
+        int x = from.X, y = from.Y;
+        var (dx, dy) = LaserUtil.DirectionToDeltas(dir);
+        int height = board.Cells.Length;
+        int width  = board.Cells[0].Length;
+        int piecesSeen = 0;
 
-        foreach (var (piece, pos) in candidates)
+        while (true)
         {
-            if (piece.Owner != owner) continue;
+            x += dx; y += dy;
+            if ((uint)x >= (uint)width || (uint)y >= (uint)height) break;
 
-            bool inLine = dir switch
-            {
-                LaserDirection.Right => pos.X > from.X,
-                LaserDirection.Left  => pos.X < from.X,
-                LaserDirection.Down  => pos.Y > from.Y,
-                LaserDirection.Up    => pos.Y < from.Y,
-                _                    => false
-            };
+            var piece = board.Cells[y][x].Piece;
+            if (piece == null) continue;
 
-            if (!inLine) continue;
+            if (piece.Owner == owner && LaserUtil.WouldKill(dir, piece)) return true;
 
-            bool wouldBeKilled = LaserUtil.Reflect(dir, piece) == null
-                && LaserUtil.LaserPieceInteraction(dir, piece).DestroyPiece;
-
-            if (!wouldBeKilled) continue;
-
-            if (CountPiecesBetween(from, pos, dir, candidates) <= 1) return true;
+            if (++piecesSeen >= 2) break;
         }
+
         return false;
-    }
-
-    private static int CountPiecesBetween(Position from, Position victim, LaserDirection dir, List<(PieceModel piece, Position pos)> candidates)
-    {
-        int count = 0;
-        foreach (var (_, pos) in candidates)
-        {
-            bool between = dir switch
-            {
-                LaserDirection.Right => pos.X > from.X && pos.X < victim.X,
-                LaserDirection.Left  => pos.X < from.X && pos.X > victim.X,
-                LaserDirection.Down  => pos.Y > from.Y && pos.Y < victim.Y,
-                LaserDirection.Up    => pos.Y < from.Y && pos.Y > victim.Y,
-                _                    => false
-            };
-            if (between) count++;
-        }
-        return count;
     }
 
 
