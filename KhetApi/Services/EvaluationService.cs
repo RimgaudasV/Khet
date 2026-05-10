@@ -204,17 +204,12 @@ public class EvaluationService : IEvaluationService
     }
 
 
-    private int EvaluateLaserEntry(BoardModel board, Player rootPlayer, List<(PieceModel piece, Position pos)> pieces)
+    private int EvaluateLaserEntry(BoardModel board, Player rootPlayer, BoardInfo boardInfo)
     {
-        Position? enemyPharaohPos = null;
-        foreach (var (piece, pos) in pieces)
-        {
-            if (piece.Type == PieceType.Pharaoh && piece.Owner != rootPlayer)
-            {
-                enemyPharaohPos = pos;
-                break;
-            }
-        }
+        var enemyPharaohPos = rootPlayer == Player.Player1
+            ? boardInfo.Player2PharaohPos
+            : boardInfo.Player1PharaohPos;
+
         if (enemyPharaohPos == null) return 0;
 
         int score = 0;
