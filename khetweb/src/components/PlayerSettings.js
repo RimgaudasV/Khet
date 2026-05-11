@@ -73,7 +73,7 @@ export default function PlayerSettings({
                                             type="number"
                                             min="-1"
                                             max="1"
-                                            step="0.1"
+                                            step="0.01"
                                             value={weights[key] ?? 1.0}
                                             onChange={(e) => handleWeightChange(key, e.target.value)}
                                             disabled={gameStarted}

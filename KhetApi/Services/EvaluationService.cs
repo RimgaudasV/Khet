@@ -112,45 +112,48 @@ public class EvaluationService : IEvaluationService
     {
         if (pharaohPos == null) return 0;
         int score = 0;
+
         foreach (var (piece, pos) in pieces)
         {
             if (piece.Owner != owner) continue;
             if (piece.Type != PieceType.Pyramid && piece.Type != PieceType.Scarab) continue;
+
             int proximity = Math.Max(Math.Abs(pos.X - pharaohPos.X), Math.Abs(pos.Y - pharaohPos.Y));
+
             score += proximity switch
             {
-                <= 1 => piece.Type == PieceType.Scarab ? 5 : 4,
-                <= 4 => piece.Type == PieceType.Scarab ? 3 : 2,
+                <= 1 => piece.Type == PieceType.Scarab ? 10 : 8,
+                <= 4 => piece.Type == PieceType.Scarab ? 6 : 4,
                 _    => 0
             };
         }
+
         return score;
     }
 
     private static readonly int[,] AnubisPst =
     {
-        { 3, 3, 2, 2, 1, 1, 2, 2, 3, 3 },
-        { 2, 2, 2, 1, 1, 1, 1, 2, 2, 2 },
-        { 1, 1, 0, 0, 0, 0, 0, 0, 1, 1 },
+        { 6, 6, 4, 4, 2, 2, 4, 4, 6, 6 },
+        { 4, 4, 4, 2, 2, 2, 2, 4, 4, 4 },
+        { 2, 2, 0, 0, 0, 0, 0, 0, 2, 2 },
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        { 1, 1, 0, 0, 0, 0, 0, 0, 1, 1 },
-        { 2, 1, 1, 1, 1, 1, 1, 1, 1, 2 },
-        { 2, 2, 1, 1, 1, 1, 1, 1, 2, 2 },
+        { 2, 2, 0, 0, 0, 0, 0, 0, 2, 2 },
+        { 4, 2, 2, 2, 2, 2, 2, 2, 2, 4 },
+        { 4, 4, 2, 2, 2, 2, 2, 2, 4, 4 },
     };
 
     private static readonly int[,] PharaohPst =
     {
         {  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
-        {  0, -1, -1, -2, -2, -2, -2, -1, -1,  0 },
-        {  0, -1, -2, -3, -3, -3, -3, -2, -1,  0 },
-        {  0, -1, -2, -3, -4, -4, -3, -2, -1,  0 },
-        {  0, -1, -2, -3, -4, -4, -3, -2, -1,  0 },
-        {  0, -1, -2, -3, -3, -3, -3, -2, -1,  0 },
-        {  0, -1, -1, -2, -2, -2, -2, -1, -1,  0 },
+        {  0, -2, -2, -4, -4, -4, -4, -2, -2,  0 },
+        {  0, -2, -4, -6, -6, -6, -6, -4, -2,  0 },
+        {  0, -2, -4, -6, -8, -8, -6, -4, -2,  0 },
+        {  0, -2, -4, -6, -8, -8, -6, -4, -2,  0 },
+        {  0, -2, -4, -6, -6, -6, -6, -4, -2,  0 },
+        {  0, -2, -2, -4, -4, -4, -4, -2, -2,  0 },
         {  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
     };
-
     private int EvaluatePieceSquareTables(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
     {
         int score = 0;
@@ -244,7 +247,7 @@ public class EvaluationService : IEvaluationService
                 if (!board.IsInsideBoard(neighbor)) continue;
 
                 var cell = board.Cells[neighbor.Y][neighbor.X];
-                if (cell.IsDisabled && cell.DisabledFor == piece.Owner) continue;
+                if (cell.IsDisabled && cell.DisabledFor != piece.Owner) continue;
 
                 var occupant = cell.Piece;
                 if (occupant == null)

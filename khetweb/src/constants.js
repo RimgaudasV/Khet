@@ -1,13 +1,13 @@
 export const HEURISTICS = [
     { key: "Material",          label: "Material",           showPieceValues: true },
-    { key: "PharaohAlignment",  label: "Pharaoh alignment" },
-    { key: "PieceSquareTables", label: "Piece-square tables" },
-    { key: "LaserEntry",        label: "Laser entry" },
+    { key: "PharaohDefense",    label: "Pharaoh defense" },
     { key: "Mobility",          label: "Mobility" },
+    { key: "PharaohAlignment",  label: "Pharaoh alignment" },
+    { key: "LaserEntry",        label: "Laser entry" },
     { key: "LaserReflectorAlignment", label: "Laser reflector alignment" },
     { key: "LaserLength",             label: "Laser length" },
+    { key: "PieceSquareTables", label: "Piece-square tables" },
     { key: "DefensiveRotations",      label: "Defensive rotations" },
-    { key: "PharaohDefense",          label: "Pharaoh defense" },
 ];
 
 export const DEFAULT_WEIGHTS = Object.fromEntries(HEURISTICS.map(h => [h.key, 1.0]));
