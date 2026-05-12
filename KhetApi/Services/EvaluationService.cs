@@ -318,16 +318,6 @@ public class EvaluationService : IEvaluationService
                     _                 => 0
                 };
             }
-            else
-            {
-                score -= piece.Type switch
-                {
-                    PieceType.Scarab  => 5,
-                    PieceType.Pyramid => 3,
-                    PieceType.Anubis  => 2,
-                    _                 => 0
-                };
-            }
         }
 
         return score;

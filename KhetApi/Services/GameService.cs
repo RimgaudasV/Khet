@@ -10,7 +10,7 @@ using KhetApi.Utils;
 
 namespace KhetApi.Services;
 
-public class GameService(IEvaluationService evaluationService) : IGameService
+public class GameService(IEvaluationService evaluationService, IOrderingService orderingService) : IGameService
 {
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
@@ -278,10 +278,11 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         ALL_MOVES_COUNT = 0;
         ALL_ROUTES_COUNT = 0;
         EVALUATED_ROUTES_COUNT = 0;
+        orderingService.ResetHistory();
 
         var rootMoves = GenerateAllMoves(request.Board, request.Player);
         ALL_MOVES_COUNT = rootMoves.Count;
-        OrderMoves(rootMoves, request.Board);
+        //OrderMoves(rootMoves, request.Board);
 
         var bestMove = FindBestMove(request.Board, request.Player, rootMoves);
         var impact = ApplyMove(request.Board, request.Player, bestMove);
@@ -312,8 +313,9 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         Interlocked.Increment(ref ALL_ROUTES_COUNT);
         Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
 
+        var killers0 = new Move?[MAX_DEPTH, 2];
         scores[0] = AlphaBetaSearch(oldestBrotherClone, GetNextPlayer(player), MAX_DEPTH - 1,
-            double.NegativeInfinity, double.PositiveInfinity, IsGameOver(oldestBrotherUndo), player, GetWinner(oldestBrotherUndo));
+            double.NegativeInfinity, double.PositiveInfinity, IsGameOver(oldestBrotherUndo), player, killers0, GetWinner(oldestBrotherUndo));
 
         double bestScore = scores[0];
         object lockObj = new();
@@ -328,8 +330,9 @@ public class GameService(IEvaluationService evaluationService) : IGameService
             double localAlpha;
             lock (lockObj) { localAlpha = bestScore - BEST_MOVE_THRESHOLD; }
 
+            var killers = new Move?[MAX_DEPTH, 2];
             double score = AlphaBetaSearch(boardClone, GetNextPlayer(player), MAX_DEPTH - 1,
-                localAlpha, double.PositiveInfinity, IsGameOver(undo), player, GetWinner(undo));
+                localAlpha, double.PositiveInfinity, IsGameOver(undo), player, killers, GetWinner(undo));
 
             scores[i] = score;
             lock (lockObj)
@@ -357,16 +360,16 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         return ApplyImpacts(board, player);
     }
 
-    private double AlphaBetaSearch(BoardModel board, Player player, int depth, double alpha, double beta, bool gameOver, Player rootPlayer, Player? winner = null)
+    private double AlphaBetaSearch(BoardModel board, Player player, int depth, double alpha, double beta, bool gameOver, Player rootPlayer, Move?[,] killers, Player? winner = null)
     {
         if (depth == 0 || gameOver)
             return evaluationService.EvaluateBoard(board, gameOver, depth, winner, rootPlayer, MAX_DEPTH, _evalConfig);
 
-        bool maximizing = player == rootPlayer;
-        double bestScore = maximizing ? double.NegativeInfinity : double.PositiveInfinity;
+        bool isMaximizingPlayerTurn = player == rootPlayer;
+        double bestScore = isMaximizingPlayerTurn ? double.NegativeInfinity : double.PositiveInfinity;
 
         var allMoves = GenerateAllMoves(board, player);
-        OrderMoves(allMoves, board);
+        orderingService.OrderMoves(allMoves, board, killers, depth);
         Interlocked.Add(ref ALL_ROUTES_COUNT, allMoves.Count);
 
         foreach (var move in allMoves)
@@ -375,10 +378,10 @@ public class GameService(IEvaluationService evaluationService) : IGameService
 
             var undo = MakeMoveInPlace(board, player, move);
             double score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta,
-                IsGameOver(undo), rootPlayer, GetWinner(undo));
+                IsGameOver(undo), rootPlayer, killers, GetWinner(undo));
             UndoMove(board, undo);
 
-            if (maximizing)
+            if (isMaximizingPlayerTurn)
             {
                 bestScore = Math.Max(bestScore, score);
                 alpha = Math.Max(alpha, bestScore);
@@ -390,45 +393,20 @@ public class GameService(IEvaluationService evaluationService) : IGameService
             }
 
             if (beta <= alpha)
+            {
+                orderingService.RecordCutoff(move, depth, killers);
                 break;
+            }
         }
 
         return bestScore;
     }
-
-    private static void OrderMoves(List<Move> moves, BoardModel board) =>
-        moves.Sort((a, b) => ScoreMove(board, b).CompareTo(ScoreMove(board, a)));
 
     private static bool IsGameOver(UndoState undo) =>
         undo.Destroyed?.Type == PieceType.Pharaoh;
 
     private Player? GetWinner(UndoState undo) =>
         IsGameOver(undo) ? GetNextPlayer(undo.Destroyed!.Owner) : null;
-
-    private static int ScoreMove(BoardModel board, Move move)
-    {
-        var piece = board.GetPieceAt(move.From);
-        if (piece == null) return 0;
-
-        if (piece.Type == PieceType.Scarab && move.Rotation == null)
-        {
-            var target = board.GetPieceAt(move.To);
-            if (target != null) return 100;
-        }
-
-        if (piece.Type == PieceType.Pharaoh) return -50;
-
-        if (move.Rotation != null && piece.Type == PieceType.Pyramid) return 20;
-
-        return piece.Type switch
-        {
-            PieceType.Anubis => 10,
-            PieceType.Pyramid => 8,
-            PieceType.Scarab => 5,
-            _ => 0
-        };
-    }
-
 
 }
 
