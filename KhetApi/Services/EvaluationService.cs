@@ -133,26 +133,26 @@ public class EvaluationService : IEvaluationService
 
     private static readonly int[,] AnubisPst =
     {
-        { 6, 6, 4, 4, 2, 2, 4, 4, 6, 6 },
-        { 4, 4, 4, 2, 2, 2, 2, 4, 4, 4 },
-        { 2, 2, 0, 0, 0, 0, 0, 0, 2, 2 },
-        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        { 2, 2, 0, 0, 0, 0, 0, 0, 2, 2 },
-        { 4, 2, 2, 2, 2, 2, 2, 2, 2, 4 },
-        { 4, 4, 2, 2, 2, 2, 2, 2, 4, 4 },
+        { 0, -1, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, -1, 0, 1, 1, 1, 1, 1, 4, 4 },
+        { 0, -1, 0, 1, 1, 1, 1, 1, 2, 2 },
+        { 0, -1, 0, 0, 0, 0, 0, 1, 2, 0 },
+        { 0, -1, 0, 0, 0, 0, 0, 1, 2, 0 },
+        { 0, -1, 0, 1, 1, 1, 1, 1, 2, 2 },
+        { 0, -1, 2, 2, 2, 2, 2, 2, 2, 4 },
+        { 0, -1, 2, 2, 2, 2, 2, 2, 4, 4 },
     };
 
     private static readonly int[,] PharaohPst =
     {
-        {  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
-        {  0, -2, -2, -4, -4, -4, -4, -2, -2,  0 },
-        {  0, -2, -4, -6, -6, -6, -6, -4, -2,  0 },
-        {  0, -2, -4, -6, -8, -8, -6, -4, -2,  0 },
-        {  0, -2, -4, -6, -8, -8, -6, -4, -2,  0 },
-        {  0, -2, -4, -6, -6, -6, -6, -4, -2,  0 },
-        {  0, -2, -2, -4, -4, -4, -4, -2, -2,  0 },
-        {  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+        {  0,  0,  0,  0,  0,  0,  0,  0,  0,  8 },
+        {  0,  2,  6,  4,  4,  4,  4,  6,  8,  8 },
+        {  0,  2,  4,  4,  2,  2,  4,  4,  8,  8 },
+        {  0,  2,  4,  2,  0,  0,  2,  4,  8,  8 },
+        {  0,  2,  4,  2,  0,  0,  2,  4,  8,  8 },
+        {  0,  2,  4,  4,  2,  2,  4,  6,  8,  8 },
+        {  0,  2,  6,  6,  6,  6,  6,  8,  8,  8 },
+        {  0,  2,  8,  8,  8,  8,  8,  8,  8,  8 },
     };
     private int EvaluatePieceSquareTables(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
     {
@@ -233,9 +233,9 @@ public class EvaluationService : IEvaluationService
     private static readonly int[] MobilityDx = { -1, -1, -1,  0, 0,  1, 1, 1 };
     private static readonly int[] MobilityDy = { -1,  0,  1, -1, 1, -1, 0, 1 };
 
-    private int EvaluateMobility(BoardModel board, List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    private double EvaluateMobility(BoardModel board, List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
     {
-        int score = 0;
+        double score = 0;
         foreach (var (piece, pos) in pieces)
         {
             if (!piece.IsMovable) continue;
@@ -257,8 +257,8 @@ public class EvaluationService : IEvaluationService
                       && (occupant.Type == PieceType.Pyramid || occupant.Type == PieceType.Anubis))
                     mobility++;
             }
-
-            score += piece.Owner == rootPlayer ? mobility : -mobility;
+            double bonus = mobility / 5;
+            score += piece.Owner == rootPlayer ? bonus : -bonus;
         }
         return score;
     }
