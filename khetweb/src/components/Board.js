@@ -122,19 +122,20 @@ export default function Board({
         return player === "Player1" ? PLAYER_ONE_EVAL_CONFIG : PLAYER_TWO_EVAL_CONFIG;
     };
 
-    function handleStartGame() {
-        if (game && isCurrentPlayerAgent(game.currentPlayer)) {
+    function handleStartGame(startingPlayer = null) {
+        const player = startingPlayer ?? (game && game.currentPlayer);
+        if (game && isCurrentPlayerAgent(player)) {
             setIsProcessing(true);
             const startTime = performance.now();
             moveByAgent(
                 game.board,
-                game.currentPlayer,
-                getAgentDepth(game.currentPlayer),
-                getAgentEvalConfig(game.currentPlayer)
+                player,
+                getAgentDepth(player),
+                getAgentEvalConfig(player)
             ).then(result => {
                 const endTime = performance.now();
                 const duration = endTime - startTime;
-                updateStats(game.currentPlayer, duration, result.allMovesCount, result.allRoutesCount, result.evaluatedRoutesCount);
+                updateStats(player, duration, result.allMovesCount, result.allRoutesCount, result.evaluatedRoutesCount);
                 setIsProcessing(false);
                 handleLaserResult(result);
             }).catch(err => {
@@ -362,7 +363,7 @@ const downloadPerTurnStats = () => {
         URL.revokeObjectURL(url);
     };
 
-    const resetGame = () => {
+    const resetGame = (startingPlayer = null) => {
         turnCountRef.current = 0;
         player1StateWindowRef.current = [];
         player2StateWindowRef.current = [];
@@ -392,7 +393,7 @@ const downloadPerTurnStats = () => {
         
         if (game) {
             setBoard(game.board);
-            setCurrentPlayer(game.currentPlayer);
+            setCurrentPlayer(startingPlayer ?? game.currentPlayer);
         }
     };
 
@@ -404,8 +405,9 @@ const downloadPerTurnStats = () => {
             setGamesCompleted(newGamesCompleted);
             
             if (newGamesCompleted < TOTAL_GAMES) {
-                resetGame();
-                handleStartGame();
+                const startingPlayer = newGamesCompleted % 2 === 0 ? "Player1" : "Player2";
+                resetGame(startingPlayer);
+                handleStartGame(startingPlayer);
             } else {
                 setAllGamesFinished(true);
                 console.log(`All ${TOTAL_GAMES} games completed!`);
