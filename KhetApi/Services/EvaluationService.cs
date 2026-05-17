@@ -134,26 +134,40 @@ public class EvaluationService : IEvaluationService
     private static readonly int[,] AnubisPst =
     {
         { 0, -1, 0, 0, 0, 0, 0, 0, 0, 0 },
-        { 0, -1, 0, 1, 1, 1, 1, 1, 4, 4 },
-        { 0, -1, 0, 1, 1, 1, 1, 1, 2, 2 },
+        { 0, -1, 0, 1, 1, 1, 1, 1, 4, 0 },
+        { 0, -1, 0, 1, 1, 1, 1, 1, 2, 0 },
         { 0, -1, 0, 0, 0, 0, 0, 1, 2, 0 },
         { 0, -1, 0, 0, 0, 0, 0, 1, 2, 0 },
-        { 0, -1, 0, 1, 1, 1, 1, 1, 2, 2 },
-        { 0, -1, 2, 2, 2, 2, 2, 2, 2, 4 },
-        { 0, -1, 2, 2, 2, 2, 2, 2, 4, 4 },
+        { 0, -1, 0, 1, 1, 1, 1, 2, 4, 0 },
+        { 0, -1, 2, 2, 2, 3, 3, 4, 5, 0 },
+        { 0, -1, 2, 2, 2, 2, 2, 2, 4, 0 },
     };
 
     private static readonly int[,] PharaohPst =
     {
-        {  0,  0,  0,  0,  0,  0,  0,  0,  0,  8 },
-        {  0,  2,  6,  4,  4,  4,  4,  6,  8,  8 },
-        {  0,  2,  4,  4,  2,  2,  4,  4,  8,  8 },
-        {  0,  2,  4,  2,  0,  0,  2,  4,  8,  8 },
-        {  0,  2,  4,  2,  0,  0,  2,  4,  8,  8 },
-        {  0,  2,  4,  4,  2,  2,  4,  6,  8,  8 },
-        {  0,  2,  6,  6,  6,  6,  6,  8,  8,  8 },
-        {  0,  2,  8,  8,  8,  8,  8,  8,  8,  8 },
+        {  0,  0,  0,  0,  0,  0,  0,  0,  0,  6 },
+        {  0,  -1,  3,  2,  2,  2,  2,  2,  4,  6 },
+        {  0,  -1,  0,  2,  2,  2,  2,  2,  6,  6 },
+        {  0,  -1,  0,  2,  0,  0,  2,  2,  6,  6 },
+        {  0,  -1,  0,  2,  0,  0,  2,  4,  8,  4 },
+        {  0,  -1,  0,  2,  2,  2,  4,  6,  8,  4 },
+        {  0,  -1,  3,  6,  6,  6,  6,  8,  8,  4 },
+        {  0,  -1,  3,  6,  6,  6,  4,  4,  4,  0 },
     };
+
+    private static readonly int[,] ScarabPst =
+    {
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 0 },
+        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 0 },
+        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 0 },
+        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    };
+
+
     private int EvaluatePieceSquareTables(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
     {
         int score = 0;
@@ -163,6 +177,7 @@ public class EvaluationService : IEvaluationService
             {
                 PieceType.Anubis  => AnubisPst,
                 PieceType.Pharaoh => PharaohPst,
+                PieceType.Scarab => ScarabPst,
                 _ => null
             };
             if (pst == null) continue;
@@ -196,7 +211,7 @@ public class EvaluationService : IEvaluationService
 
             if (piece == null) { step++; continue; }
             if (piece.Owner != rootPlayer) break;
-            if (piece.Type == PieceType.Pyramid || piece.Type == PieceType.Scarab)
+            if (piece.Type == PieceType.Pyramid)
                 return pos;
 
             step++;
@@ -220,11 +235,11 @@ public class EvaluationService : IEvaluationService
         int score = 0;
         var xSupporter = FindFirstSupporterOnAxis(board, player, Axis.X);
         if (xSupporter != null)
-            score += 2 + AxisPressure(xSupporter.X, enemyPharaohPos.X);
+            score += 4 + AxisPressure(xSupporter.X, enemyPharaohPos.X);
 
         var ySupporter = FindFirstSupporterOnAxis(board, player, Axis.Y);
         if (ySupporter != null)
-            score += 2 + AxisPressure(ySupporter.Y, enemyPharaohPos.Y);
+            score += 4 + AxisPressure(ySupporter.Y, enemyPharaohPos.Y);
 
         return score;
     }
@@ -267,7 +282,7 @@ public class EvaluationService : IEvaluationService
     private int AxisPressure(int supportCoord, int enemyCoord)
     {
         int distance = Math.Abs(supportCoord - enemyCoord);
-        return Math.Max(0, 6 - distance);
+        return Math.Max(0, 3 - distance);
     }
 
     private int EvaluatePharaohDefense(BoardInfo boardInfo, BoardModel board, Player rootPlayer)
