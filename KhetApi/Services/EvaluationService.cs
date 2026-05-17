@@ -29,7 +29,7 @@ public class EvaluationService : IEvaluationService
         if (evalConfig.Weights.TryGetValue("Mobility", out var mobilityWeight) && mobilityWeight != 0)
             score += mobilityWeight * EvaluateMobility(board, boardInfo.Pieces, rootPlayer);
         if (evalConfig.Weights.TryGetValue("LaserReflectorAlignment", out var laserReflectorAlignmentWeight) && laserReflectorAlignmentWeight != 0)
-            score += laserReflectorAlignmentWeight * EvaluateLaserReflectorAlignment(boardInfo.Pieces, rootPlayer);
+            score += laserReflectorAlignmentWeight * EvaluateLaserReflectorAlignment(boardInfo.Pieces, rootPlayer, board);
         if (evalConfig.Weights.TryGetValue("LaserLength", out var laserLengthWeight) && laserLengthWeight != 0)
             score += laserLengthWeight * EvaluateLaserLength(board, rootPlayer);
         if (evalConfig.Weights.TryGetValue("DefensiveRotations", out var defensiveRotationsWeight) && defensiveRotationsWeight != 0)
@@ -133,40 +133,39 @@ public class EvaluationService : IEvaluationService
 
     private static readonly int[,] AnubisPst =
     {
-        { 0, -1, 0, 0, 0, 0, 0, 0, 0, 0 },
-        { 0, -1, 0, 1, 1, 1, 1, 1, 4, 0 },
-        { 0, -1, 0, 1, 1, 1, 1, 1, 2, 0 },
-        { 0, -1, 0, 0, 0, 0, 0, 1, 2, 0 },
-        { 0, -1, 0, 0, 0, 0, 0, 1, 2, 0 },
-        { 0, -1, 0, 1, 1, 1, 1, 2, 4, 0 },
-        { 0, -1, 2, 2, 2, 3, 3, 4, 5, 0 },
-        { 0, -1, 2, 2, 2, 2, 2, 2, 4, 0 },
+        { 0, -6,  0,  0,  0,  0,  0,  0,  6, 0 },
+        { 0, -6,  0,  0,  0,  0,  0, 12, 12, 0 },
+        { 0, -6,  0,  0,  0,  0,  6, 12, 12, 0 },
+        { 0, -6,  0,  0,  0,  0,  6, 12, 12, 0 },
+        { 0, -6,  0,  0,  0,  6, 14, 14, 14, 0 },
+        { 0, -6,  0, 10, 10, 12, 14, 14, 14, 0 },
+        { 0, -6, 12, 12, 12, 12, 14, 14, 14, 0 },
+        { 0, -6, 12, 12, 12, 12, 12, 12, 12, 0 },
     };
 
     private static readonly int[,] PharaohPst =
     {
-        {  0,  0,  0,  0,  0,  0,  0,  0,  0,  6 },
-        {  0,  -1,  3,  2,  2,  2,  2,  2,  4,  6 },
-        {  0,  -1,  0,  2,  2,  2,  2,  2,  6,  6 },
-        {  0,  -1,  0,  2,  0,  0,  2,  2,  6,  6 },
-        {  0,  -1,  0,  2,  0,  0,  2,  4,  8,  4 },
-        {  0,  -1,  0,  2,  2,  2,  4,  6,  8,  4 },
-        {  0,  -1,  3,  6,  6,  6,  6,  8,  8,  4 },
-        {  0,  -1,  3,  6,  6,  6,  4,  4,  4,  0 },
+        {  0,  -6, -6, -6, -6, -6, -6, -6, -6, -6 },
+        {  0,  -6,  0,  0,  0,  0,  0,  0, 12, 12 },
+        {  0,  -6,  0,  0,  0,  0,  0,  6, 18, 12 },
+        {  0,  -6,  0,  0,  0,  0,  6,  6, 18, 12 },
+        {  0,  -6,  0,  0,  0,  0,  6, 12, 24, 12 },
+        {  0,  -6,  0,  0,  6, 12, 12, 18, 24, 12 },
+        {  0,  -6,  9, 10, 12, 18, 18, 24, 30, 12 },
+        {  0,  -6,  9, 18, 18, 18, 12, 12, 12,  0 },
     };
 
     private static readonly int[,] ScarabPst =
     {
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 0 },
-        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 0 },
-        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 0 },
-        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 0 },
+        { 0, 0, 8, 8, 8, 8, 8, 8, 0, 0 },
+        { 0, 0, 8, 8, 8, 8, 8, 8, 0, 0 },
+        { 0, 0, 8, 8, 8, 8, 8, 8, 0, 0 },
+        { 0, 0, 8, 8, 8, 8, 8, 8, 0, 0 },
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
     };
-
 
     private int EvaluatePieceSquareTables(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
     {
@@ -192,35 +191,6 @@ public class EvaluationService : IEvaluationService
     }
 
 
-    private Position? FindFirstSupporterOnAxis(BoardModel board, Player rootPlayer, Axis axis)
-    {
-        Position sphinxPos = rootPlayer == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
-        int stepDirection = rootPlayer == Player.Player1 ? -1 : 1;
-        int step = 1;
-
-        while (true)
-        {
-            var pos = new Position(
-                axis == Axis.X ? sphinxPos.X + stepDirection * step : sphinxPos.X,
-                axis == Axis.Y ? sphinxPos.Y + stepDirection * step : sphinxPos.Y
-            );
-
-            if (!board.IsInsideBoard(pos)) break;
-
-            var piece = board.GetPieceAt(pos);
-
-            if (piece == null) { step++; continue; }
-            if (piece.Owner != rootPlayer) break;
-            if (piece.Type == PieceType.Pyramid)
-                return pos;
-
-            step++;
-        }
-
-        return null;
-    }
-
-
     private int EvaluateLaserEntry(BoardModel board, Player rootPlayer, BoardInfo boardInfo)
     {
         var opponent = rootPlayer == Player.Player1 ? Player.Player2 : Player.Player1;
@@ -229,19 +199,102 @@ public class EvaluationService : IEvaluationService
 
     private int LaserEntryScore(BoardModel board, Player player, BoardInfo boardInfo)
     {
-        var enemyPharaohPos = player == Player.Player1 ? boardInfo.Player2PharaohPos : boardInfo.Player1PharaohPos;
+        var enemyPharaohPos = player == Player.Player1
+            ? boardInfo.Player2PharaohPos
+            : boardInfo.Player1PharaohPos;
         if (enemyPharaohPos == null) return 0;
 
         int score = 0;
-        var xSupporter = FindFirstSupporterOnAxis(board, player, Axis.X);
-        if (xSupporter != null)
-            score += 4 + AxisPressure(xSupporter.X, enemyPharaohPos.X);
 
-        var ySupporter = FindFirstSupporterOnAxis(board, player, Axis.Y);
-        if (ySupporter != null)
-            score += 4 + AxisPressure(ySupporter.Y, enemyPharaohPos.Y);
+        foreach (var axis in new[] { Axis.X, Axis.Y })
+        {
+            var (first, second) = FindSupportersOnAxis(board, player, axis);
+            var incoming = GetIncomingDirection(player, axis);
+
+            if (first != null)
+            {
+                var piece = board.GetPieceAt(first)!;
+                score += 14
+                      + (IsCorrectRotation(piece, incoming, first, enemyPharaohPos) ? 9 : 0)
+                      + PharaohAlignBonus(first, enemyPharaohPos, axis);
+            }
+
+            if (second != null)
+            {
+                var piece = board.GetPieceAt(second)!;
+                score += 14
+                      + (IsCorrectRotation(piece, incoming, second, enemyPharaohPos) ? 9 : 0)
+                      + PharaohAlignBonus(second, enemyPharaohPos, axis);
+            }
+        }
 
         return score;
+    }
+
+    private (Position? first, Position? second) FindSupportersOnAxis(BoardModel board, Player player, Axis axis)
+    {
+        Position sphinxPos = player == Player.Player1 ? new Position(9, 7) : new Position(0, 0);
+        int stepDir = player == Player.Player1 ? -1 : 1;
+        Position? first = null;
+        int piecesEncountered = 0;
+        int step = 1;
+
+        while (true)
+        {
+            var pos = new Position(
+                axis == Axis.X ? sphinxPos.X + stepDir * step : sphinxPos.X,
+                axis == Axis.Y ? sphinxPos.Y + stepDir * step : sphinxPos.Y
+            );
+            if (!board.IsInsideBoard(pos)) break;
+
+            var piece = board.GetPieceAt(pos);
+            if (piece == null) { step++; continue; }
+            if (piece.Owner != player) break;
+
+            piecesEncountered++;
+
+            if (piece.Type == PieceType.Pyramid)
+            {
+                if (first == null) { first = pos; }
+                else if (piecesEncountered == 2) { return (first, pos); }
+                else break;
+            }
+
+            step++;
+        }
+
+        return (first, null);
+    }
+
+    private static LaserDirection GetIncomingDirection(Player player, Axis axis) =>
+        (player, axis) switch
+        {
+            (Player.Player1, Axis.X) => LaserDirection.Left,
+            (Player.Player1, Axis.Y) => LaserDirection.Up,
+            (Player.Player2, Axis.X) => LaserDirection.Right,
+            _                        => LaserDirection.Down,
+        };
+
+    private static bool IsCorrectRotation(PieceModel pyramid, LaserDirection incoming,
+        Position pyramidPos, Position enemyPharaohPos)
+    {
+        var reflected = LaserUtil.Reflect(incoming, pyramid);
+        return reflected switch
+        {
+            LaserDirection.Up    => enemyPharaohPos.Y < pyramidPos.Y,
+            LaserDirection.Down  => enemyPharaohPos.Y > pyramidPos.Y,
+            LaserDirection.Left  => enemyPharaohPos.X < pyramidPos.X,
+            LaserDirection.Right => enemyPharaohPos.X > pyramidPos.X,
+            _                    => false,
+        };
+    }
+
+    private static int PharaohAlignBonus(Position pyramidPos, Position enemyPharaohPos, Axis axis)
+    {
+        int dist = axis == Axis.X
+            ? Math.Abs(pyramidPos.X - enemyPharaohPos.X)
+            : Math.Abs(pyramidPos.Y - enemyPharaohPos.Y);
+        return 2 * Math.Max(0, 4 - dist);
     }
 
 
@@ -276,13 +329,6 @@ public class EvaluationService : IEvaluationService
             score += piece.Owner == rootPlayer ? bonus : -bonus;
         }
         return score;
-    }
-
-
-    private int AxisPressure(int supportCoord, int enemyCoord)
-    {
-        int distance = Math.Abs(supportCoord - enemyCoord);
-        return Math.Max(0, 3 - distance);
     }
 
     private int EvaluatePharaohDefense(BoardInfo boardInfo, BoardModel board, Player rootPlayer)
@@ -378,7 +424,7 @@ public class EvaluationService : IEvaluationService
 
 
 
-    private static int EvaluateLaserReflectorAlignment(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer)
+    private static int EvaluateLaserReflectorAlignment(List<(PieceModel piece, Position pos)> pieces, Player rootPlayer, BoardModel board)
     {
         int score = 0;
 
@@ -393,8 +439,12 @@ public class EvaluationService : IEvaluationService
                 var (other, otherPos) = pieces[j];
                 if (other.Type != PieceType.Pyramid && other.Type != PieceType.Scarab) continue;
                 if (other.Owner != piece.Owner) continue;
-                if (otherPos.X == pos.X || otherPos.Y == pos.Y)
-                    alignCount++;
+
+                if (otherPos.Y == pos.Y || otherPos.X == pos.X)
+                {
+                    if (CountPiecesBetween(board, pos, otherPos) <= 1)
+                        alignCount++;
+                }
             }
 
             score += piece.Owner == rootPlayer ? alignCount : -alignCount;
@@ -482,6 +532,36 @@ public class EvaluationService : IEvaluationService
         }
 
         return null;
+    }
+
+    private static int CountPiecesBetween(BoardModel board, Position a, Position b)
+    {
+        int count = 0;
+
+        if (a.X == b.X)
+        {
+            int minY = Math.Min(a.Y, b.Y);
+            int maxY = Math.Max(a.Y, b.Y);
+
+            for (int y = minY + 1; y < maxY; y++)
+            {
+                if (board.Cells[y][a.X].Piece != null)
+                    count++;
+            }
+        }
+        else
+        {
+            int minX = Math.Min(a.X, b.X);
+            int maxX = Math.Max(a.X, b.X);
+
+            for (int x = minX + 1; x < maxX; x++)
+            {
+                if (board.Cells[a.Y][x].Piece != null)
+                    count++;
+            }
+        }
+
+        return count;
     }
 
 

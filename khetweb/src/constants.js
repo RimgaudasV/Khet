@@ -5,9 +5,10 @@ export const HEURISTICS = [
     { key: "PharaohAlignment",  label: "Pharaoh alignment" },
     { key: "LaserEntry",        label: "Laser entry" },
     { key: "LaserReflectorAlignment", label: "Laser reflector alignment" },
-    { key: "LaserLength",             label: "Laser length" },
-    { key: "PieceSquareTables", label: "Piece-square tables" },
     { key: "DefensiveRotations",      label: "Defensive rotations" },
+    { key: "PieceSquareTables",       label: "Piece-square tables" },
+    { key: "LaserLength",             label: "Laser length" }
+
 ];
 
 export const DEFAULT_WEIGHTS = Object.fromEntries(HEURISTICS.map(h => [h.key, 1.0]));

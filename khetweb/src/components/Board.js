@@ -58,8 +58,8 @@ export default function Board({
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
 
     const MAX_TURNS = 1500;
-    const LOOP_WINDOW = 10;
-    const LOOP_THRESHOLD = 5;
+    const LOOP_WINDOW = 30;
+    const LOOP_THRESHOLD = 15;
     const turnCountRef = useRef(0);
     const player1StateWindowRef = useRef([]);
     const player2StateWindowRef = useRef([]);
@@ -323,12 +323,14 @@ const downloadPerTurnStats = () => {
         const player2Wins = wins.Player2 || 0;
         const draws = wins.Draw || 0;
 
-        const player1WinRate = totalGames > 0
-            ? ((player1Wins / totalGames) * 100).toFixed(1)
+        const decidedGames = player1Wins + player2Wins;
+
+        const player1WinRate = decidedGames > 0
+            ? ((player1Wins / decidedGames) * 100).toFixed(1)
             : "0.0";
 
-        const player2WinRate = totalGames > 0
-            ? ((player2Wins / totalGames) * 100).toFixed(1)
+        const player2WinRate = decidedGames > 0
+            ? ((player2Wins / decidedGames) * 100).toFixed(1)
             : "0.0";
 
         const drawRate = totalGames > 0
