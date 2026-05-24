@@ -6,11 +6,11 @@ using KhetApi.Models.Move;
 using KhetApi.Models.Piece;
 using KhetApi.Requests;
 using KhetApi.Responses;
-using System.Diagnostics;
+using KhetApi.Utils;
 
 namespace KhetApi.Services;
 
-public class GameService(IEvaluationService evaluationService) : IGameService
+public class GameService(IEvaluationService evaluationService, IOrderingService orderingService) : IGameService
 {
     private static readonly int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
     private static readonly int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
@@ -21,6 +21,7 @@ public class GameService(IEvaluationService evaluationService) : IGameService
     private int ALL_MOVES_COUNT = 0;
     private int ALL_ROUTES_COUNT = 0;
     private int EVALUATED_ROUTES_COUNT = 0;
+    private const double BEST_MOVE_THRESHOLD = 0.5;
 
 
     public GameResponse StartGame()
@@ -36,67 +37,46 @@ public class GameService(IEvaluationService evaluationService) : IGameService
 
     public ImpactResultModel MakeMove(MoveRequest request)
     {
-        var board = request.Board;
-        
-        var piece = board.GetPieceAt(request.CurrentPosition)
-            ?? throw new InvalidOperationException("No piece found at the current position.");
-        var targetPiece = board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece;
-
-        if (piece.Type == PieceType.Scarab && targetPiece is not null)
-        {
-            board.Cells[request.CurrentPosition.Y][request.CurrentPosition.X].Piece = targetPiece;
-            board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece = piece;
-        }
-        else
-        {
-            board.Cells[request.NewPosition.Y][request.NewPosition.X].Piece = piece;
-            board.Cells[request.CurrentPosition.Y][request.CurrentPosition.X].Piece = null;
-        }
-
+        DoMove(request.Board, request.CurrentPosition, request.NewPosition);
         return ApplyImpacts(request.Board, request.Player);
-
     }
 
     private UndoState MakeMoveInPlace(BoardModel board, Player player, Move move)
     {
-        var undo = new UndoState
-        {
-            From = move.From,
-            To = move.To
-        };
+        var undo = new UndoState { From = move.From, To = move.To };
 
         if (move.Rotation == null)
-        {
-            var fromCell = board.Cells[move.From.Y][move.From.X];
-            var toCell = board.Cells[move.To.Y][move.To.X];
-
-            var movingPiece = fromCell.Piece;
-            var targetPiece = toCell.Piece;
-
-            undo.Captured = targetPiece;
-
-            if (movingPiece.Type == PieceType.Scarab && targetPiece != null)
-            {
-                toCell.Piece = movingPiece;
-                fromCell.Piece = targetPiece;
-            }
-            else
-            {
-                toCell.Piece = movingPiece;
-                fromCell.Piece = null;
-            }
-        }
+            undo.Captured = DoMove(board, move.From, move.To);
         else
-        {
-            var piece = board.GetPieceAt(move.From)!;
-            undo.OldRotation = piece.Rotation;
-            piece.Rotation = move.Rotation.Value;
-        }
+            undo.OldRotation = DoRotate(board, move.From, move.Rotation.Value);
 
         var impact = ApplyImpacts(board, player);
         undo.Destroyed = impact.DestroyedPiece;
 
         return undo;
+    }
+
+    private static PieceModel? DoMove(BoardModel board, Position from, Position to)
+    {
+        var fromCell = board.Cells[from.Y][from.X];
+        var toCell   = board.Cells[to.Y][to.X];
+        var moving   = fromCell.Piece!;
+        var target   = toCell.Piece;
+
+        if (moving.Type == PieceType.Scarab && target != null)
+            (toCell.Piece, fromCell.Piece) = (moving, target);
+        else
+            (toCell.Piece, fromCell.Piece) = (moving, null);
+
+        return target;
+    }
+
+    private static Rotation DoRotate(BoardModel board, Position pos, Rotation rotation)
+    {
+        var piece = board.GetPieceAt(pos)!;
+        var old = piece.Rotation;
+        piece.Rotation = rotation;
+        return old;
     }
     private void UndoMove(BoardModel board, UndoState undo)
     {
@@ -130,131 +110,35 @@ public class GameService(IEvaluationService evaluationService) : IGameService
 
     public ImpactResultModel Rotate(RotationRequest request)
     {
-        var piece = request.Board.GetPieceAt(request.CurrentPosition)
-            ?? throw new InvalidOperationException("No piece found at the current position.");
-        piece.Rotation = request.NewRotation;
-
+        DoRotate(request.Board, request.CurrentPosition, request.NewRotation);
         return ApplyImpacts(request.Board, request.Player);
     }
 
     private ImpactResultModel ApplyImpacts(BoardModel board, Player player)
     {
-        var currentPosition = player == Player.Player1
-            ? new Position(9, 7)
-            : new Position(0, 0);
+        var origin = LaserUtil.GetLaserStart(board, player);
+        var trace  = LaserUtil.TraceLaserPath(board, origin.Pos, origin.Dir);
+        var hit    = trace.HitPiece != null
+            ? ResolveHit(board, trace.HitPiece, trace.HitPos!, trace.HitDir)
+            : new LaserHitResult(null, false);
 
-        var laserDirection = RotationMapper.ToLaserDirection(board.GetPieceAt(currentPosition).Rotation);
-
-        var laserPath = new List<Position> { currentPosition };
-
-        bool gameOver = false;
-        DestroyedPiece? destroyedPiece = null;
-
-        while (true)
-        {
-            currentPosition = MoveOneStep(currentPosition, laserDirection);
-
-            if (!board.IsInsideBoard(currentPosition))
-                break;
-
-            laserPath.Add(currentPosition);
-
-            var cell = board.Cells[currentPosition.Y][currentPosition.X];
-            var piece = cell.Piece;
-
-            if (cell.IsDisabled && piece == null)
-                continue;
-
-            if (piece != null)
-            {
-                var impact = CalculateImpact(laserDirection, piece);
-
-                if (impact.DestroyPiece)
-                {
-                    destroyedPiece = new DestroyedPiece { 
-                        Type = piece.Type,
-                        Owner = piece.Owner,
-                        Position = currentPosition,
-                        Rotation = piece.Rotation
-                    };
-                    board.RemovePiece(currentPosition);
-                    if (impact.GameOver)
-                    {
-                        return new ImpactResultModel(board, laserPath, true, GetNextPlayer(player), destroyedPiece);
-                    }
-                    break;
-                }
-
-                if (impact.NewDirection is null)
-                {
-                    break;
-                }
-                laserDirection = impact.NewDirection.Value;
-            }
-        }
-        var nextPlayer = GetNextPlayer(player);
-
-        return new ImpactResultModel (board, laserPath, gameOver, nextPlayer, destroyedPiece);
+        return new ImpactResultModel(board, trace.Path, hit.GameOver, GetNextPlayer(player), hit.Destroyed);
     }
 
-    private Position MoveOneStep(Position pos, LaserDirection dir) => dir switch
+    private static LaserHitResult ResolveHit(BoardModel board, PieceModel piece, Position pos, LaserDirection dir)
     {
-        LaserDirection.Up => new Position(pos.X, pos.Y - 1),
-        LaserDirection.Right => new Position(pos.X + 1, pos.Y),
-        LaserDirection.Down => new Position(pos.X, pos.Y + 1),
-        LaserDirection.Left => new Position(pos.X - 1, pos.Y),
-        _ => throw new InvalidOperationException("Invalid laser direction.")
-    };
+        var result = LaserUtil.LaserPieceInteraction(dir, piece);
+        if (!result.DestroyPiece) return new LaserHitResult(null, false);
 
-    private ImpactResult CalculateImpact(LaserDirection laserDir, PieceModel piece)
-    {
-        return (laserDir, piece.Rotation, piece.Type) switch
+        var destroyed = new DestroyedPiece
         {
-            // PYRAMID REFLECTIONS
-            (LaserDirection.Up, Rotation.LeftDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Left, false, false),
-            (LaserDirection.Up, Rotation.RightDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Right, false, false),
-
-            (LaserDirection.Down, Rotation.LeftUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Left, false, false),
-            (LaserDirection.Down, Rotation.RightUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Right, false, false),
-
-            (LaserDirection.Left, Rotation.RightDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Left, Rotation.RightUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Up, false, false),
-
-            (LaserDirection.Right, Rotation.LeftDown, PieceType.Pyramid) => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Right, Rotation.LeftUp, PieceType.Pyramid) => new ImpactResult(LaserDirection.Up, false, false),
-
-            // SCARAB REFLECTIONS
-            // RightUp rotation
-            (LaserDirection.Up, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Left, false, false),
-            (LaserDirection.Left, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Up, false, false),
-            (LaserDirection.Right, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Down, Rotation.RightUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Right, false, false),
-
-            // LeftUp rotation
-            (LaserDirection.Up, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Right, false, false),
-            (LaserDirection.Right, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Up, false, false),
-            (LaserDirection.Left, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Down, false, false),
-            (LaserDirection.Down, Rotation.LeftUp, PieceType.Scarab) => new ImpactResult(LaserDirection.Left, false, false),
-
-
-            // Sphinx
-            (_, _, PieceType.Sphinx) => new ImpactResult(null, false, false),
-
-            // ANUBIS 
-            (LaserDirection.Down, Rotation.Up, PieceType.Anubis) => new ImpactResult(null, false, false),
-            (LaserDirection.Up, Rotation.Down, PieceType.Anubis) => new ImpactResult(null, false, false),
-            (LaserDirection.Left, Rotation.Right, PieceType.Anubis) => new ImpactResult(null, false, false),
-            (LaserDirection.Right, Rotation.Left, PieceType.Anubis) => new ImpactResult(null, false, false),
-
-            //Not destoyed but no reflection either
-            (_, _, PieceType.Anubis) => new ImpactResult(null, true, false),
-
-            // PHARAOH → game over
-            (_, _, PieceType.Pharaoh) => new ImpactResult(null, true, true),
-
-            // ALL OTHER PIECES → destroyed
-            (_, _, _) => new ImpactResult(laserDir, true, false)
+            Type     = piece.Type,
+            Owner    = piece.Owner,
+            Position = pos,
+            Rotation = piece.Rotation
         };
+        board.RemovePiece(pos);
+        return new LaserHitResult(destroyed, result.GameOver);
     }
 
     public Player GetNextPlayer(Player player)
@@ -394,10 +278,11 @@ public class GameService(IEvaluationService evaluationService) : IGameService
         ALL_MOVES_COUNT = 0;
         ALL_ROUTES_COUNT = 0;
         EVALUATED_ROUTES_COUNT = 0;
+        orderingService.ResetHistory();
 
         var rootMoves = GenerateAllMoves(request.Board, request.Player);
         ALL_MOVES_COUNT = rootMoves.Count;
-        OrderMoves(rootMoves, request.Board);
+        //OrderMoves(rootMoves, request.Board);
 
         var bestMove = FindBestMove(request.Board, request.Player, rootMoves);
         var impact = ApplyMove(request.Board, request.Player, bestMove);
@@ -420,59 +305,71 @@ public class GameService(IEvaluationService evaluationService) : IGameService
 
     private Move FindBestMove(BoardModel board, Player player, List<Move> rootMoves)
     {
+        var scores = new double[rootMoves.Count];
+
         var oldestBrotherClone = board.Clone();
         var oldestBrotherUndo = MakeMoveInPlace(oldestBrotherClone, player, rootMoves[0]);
 
         Interlocked.Increment(ref ALL_ROUTES_COUNT);
         Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
 
-        double bestScore = AlphaBetaSearch(oldestBrotherClone, GetNextPlayer(player), MAX_DEPTH - 1,
-            double.NegativeInfinity, double.PositiveInfinity, IsGameOver(oldestBrotherUndo), player, GetWinner(oldestBrotherUndo));
-        Move bestMove = rootMoves[0];
+        var killers0 = new Move?[MAX_DEPTH, 2];
+        scores[0] = AlphaBetaSearch(oldestBrotherClone, GetNextPlayer(player), MAX_DEPTH - 1,
+            double.NegativeInfinity, double.PositiveInfinity, IsGameOver(oldestBrotherUndo), player, killers0, GetWinner(oldestBrotherUndo));
 
+        double bestScore = scores[0];
         object lockObj = new();
 
-        Parallel.ForEach(rootMoves.Skip(1), move =>
+        Parallel.For(1, rootMoves.Count, i =>
         {
             var boardClone = board.Clone();
-            var undo = MakeMoveInPlace(boardClone, player, move);
+            var undo = MakeMoveInPlace(boardClone, player, rootMoves[i]);
             Interlocked.Increment(ref ALL_ROUTES_COUNT);
             Interlocked.Increment(ref EVALUATED_ROUTES_COUNT);
 
             double localAlpha;
-            lock (lockObj) { localAlpha = bestScore; }
+            lock (lockObj) { localAlpha = bestScore - BEST_MOVE_THRESHOLD; }
 
+            var killers = new Move?[MAX_DEPTH, 2];
             double score = AlphaBetaSearch(boardClone, GetNextPlayer(player), MAX_DEPTH - 1,
-                localAlpha, double.PositiveInfinity, IsGameOver(undo), player, GetWinner(undo));
+                localAlpha, double.PositiveInfinity, IsGameOver(undo), player, killers, GetWinner(undo));
 
+            scores[i] = score;
             lock (lockObj)
             {
                 if (score > bestScore)
-                {
                     bestScore = score;
-                    bestMove = move;
-                }
             }
         });
 
-        return bestMove;
+        var candidates = rootMoves
+            .Select((move, i) => (move, scores[i]))
+            .Where(x => x.Item2 >= bestScore - BEST_MOVE_THRESHOLD)
+            .Select(x => x.move)
+            .ToList();
+
+        return candidates[Random.Shared.Next(candidates.Count)];
     }
 
-    private ImpactResultModel ApplyMove(BoardModel board, Player player, Move move) =>
-        move.Rotation != null
-            ? Rotate(new RotationRequest { Board = board, Player = player, CurrentPosition = move.From, NewRotation = move.Rotation.Value })
-            : MakeMove(new MoveRequest { Board = board, Player = player, CurrentPosition = move.From, NewPosition = move.To });
+    private ImpactResultModel ApplyMove(BoardModel board, Player player, Move move)
+    {
+        if (move.Rotation != null)
+            DoRotate(board, move.From, move.Rotation.Value);
+        else
+            DoMove(board, move.From, move.To);
+        return ApplyImpacts(board, player);
+    }
 
-    private double AlphaBetaSearch(BoardModel board, Player player, int depth, double alpha, double beta, bool gameOver, Player rootPlayer, Player? winner = null)
+    private double AlphaBetaSearch(BoardModel board, Player player, int depth, double alpha, double beta, bool gameOver, Player rootPlayer, Move?[,] killers, Player? winner = null)
     {
         if (depth == 0 || gameOver)
             return evaluationService.EvaluateBoard(board, gameOver, depth, winner, rootPlayer, MAX_DEPTH, _evalConfig);
 
-        bool maximizing = player == rootPlayer;
-        double bestScore = maximizing ? double.NegativeInfinity : double.PositiveInfinity;
+        bool isMaximizingPlayerTurn = player == rootPlayer;
+        double bestScore = isMaximizingPlayerTurn ? double.NegativeInfinity : double.PositiveInfinity;
 
         var allMoves = GenerateAllMoves(board, player);
-        OrderMoves(allMoves, board);
+        orderingService.OrderMoves(allMoves, board, killers, depth);
         Interlocked.Add(ref ALL_ROUTES_COUNT, allMoves.Count);
 
         foreach (var move in allMoves)
@@ -481,10 +378,10 @@ public class GameService(IEvaluationService evaluationService) : IGameService
 
             var undo = MakeMoveInPlace(board, player, move);
             double score = AlphaBetaSearch(board, GetNextPlayer(player), depth - 1, alpha, beta,
-                IsGameOver(undo), rootPlayer, GetWinner(undo));
+                IsGameOver(undo), rootPlayer, killers, GetWinner(undo));
             UndoMove(board, undo);
 
-            if (maximizing)
+            if (isMaximizingPlayerTurn)
             {
                 bestScore = Math.Max(bestScore, score);
                 alpha = Math.Max(alpha, bestScore);
@@ -496,45 +393,20 @@ public class GameService(IEvaluationService evaluationService) : IGameService
             }
 
             if (beta <= alpha)
+            {
+                orderingService.RecordCutoff(move, depth, killers);
                 break;
+            }
         }
 
         return bestScore;
     }
-
-    private static void OrderMoves(List<Move> moves, BoardModel board) =>
-        moves.Sort((a, b) => ScoreMove(board, b).CompareTo(ScoreMove(board, a)));
 
     private static bool IsGameOver(UndoState undo) =>
         undo.Destroyed?.Type == PieceType.Pharaoh;
 
     private Player? GetWinner(UndoState undo) =>
         IsGameOver(undo) ? GetNextPlayer(undo.Destroyed!.Owner) : null;
-
-    private static int ScoreMove(BoardModel board, Move move)
-    {
-        var piece = board.GetPieceAt(move.From);
-        if (piece == null) return 0;
-
-        if (piece.Type == PieceType.Scarab && move.Rotation == null)
-        {
-            var target = board.GetPieceAt(move.To);
-            if (target != null) return 100;
-        }
-
-        if (piece.Type == PieceType.Pharaoh) return -50;
-
-        if (move.Rotation != null && piece.Type == PieceType.Pyramid) return 20;
-
-        return piece.Type switch
-        {
-            PieceType.Anubis => 10,
-            PieceType.Pyramid => 8,
-            PieceType.Scarab => 5,
-            _ => 0
-        };
-    }
-
 
 }
 

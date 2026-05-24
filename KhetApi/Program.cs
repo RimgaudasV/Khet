@@ -17,6 +17,7 @@ builder.Services.AddControllers()
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IEvaluationService, EvaluationService>();
+builder.Services.AddScoped<IOrderingService, OrderingService>();
 
 builder.Services.AddCors(options =>
 {

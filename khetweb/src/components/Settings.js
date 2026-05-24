@@ -217,7 +217,7 @@ export default function Settings({
                     <input
                         type="number"
                         min="1"
-                        max="100"
+                        max="1000"
                         value={totalGames}
                         onChange={(e) => {
                             const val = e.target.value;

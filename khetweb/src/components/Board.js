@@ -58,11 +58,13 @@ export default function Board({
     const bothAgents = PLAYER_ONE_AGENT && PLAYER_TWO_AGENT;
 
     const MAX_TURNS = 1500;
-    const LOOP_WINDOW = 10;
-    const LOOP_THRESHOLD = 5;
+    const LOOP_WINDOW = 30;
+    const LOOP_THRESHOLD = 15;
     const turnCountRef = useRef(0);
     const player1StateWindowRef = useRef([]);
     const player2StateWindowRef = useRef([]);
+    const player1PosWindowRef = useRef([]);
+    const player2PosWindowRef = useRef([]);
 
     const serializePlayerPieces = (board, player) =>
         board.cells.map(row =>
@@ -72,15 +74,28 @@ export default function Board({
             }).join('')
         ).join('|');
 
+    const serializePlayerPositions = (board, player) =>
+        board.cells.map(row =>
+            row.map(cell => {
+                const p = cell.piece;
+                return (p && p.owner === player) ? p.type[0] : '_';
+            }).join('')
+        ).join('|');
+
     const detectLoop = (board, currentPlayer) => {
         const justMoved = currentPlayer === "Player1" ? "Player2" : "Player1";
         const windowRef = justMoved === "Player1" ? player1StateWindowRef : player2StateWindowRef;
+        const posWindowRef = justMoved === "Player1" ? player1PosWindowRef : player2PosWindowRef;
         const stateKey = serializePlayerPieces(board, justMoved);
+        const posKey = serializePlayerPositions(board, justMoved);
 
         windowRef.current = [...windowRef.current, stateKey].slice(-LOOP_WINDOW);
+        posWindowRef.current = [...posWindowRef.current, posKey].slice(-LOOP_WINDOW);
         const stateCount = windowRef.current.filter(s => s === stateKey).length;
+        const positionFrozen = posWindowRef.current.length >= LOOP_WINDOW &&
+            posWindowRef.current.every(s => s === posKey);
 
-        if (stateCount >= LOOP_THRESHOLD || turnCountRef.current >= MAX_TURNS) {
+        if (stateCount >= LOOP_THRESHOLD || positionFrozen || turnCountRef.current >= MAX_TURNS) {
             setCurrentGameWinner("Draw");
             setGameOver(true);
             if (gamesCompleted + 1 >= TOTAL_GAMES) {
@@ -107,19 +122,20 @@ export default function Board({
         return player === "Player1" ? PLAYER_ONE_EVAL_CONFIG : PLAYER_TWO_EVAL_CONFIG;
     };
 
-    function handleStartGame() {
-        if (game && isCurrentPlayerAgent(game.currentPlayer)) {
+    function handleStartGame(startingPlayer = null) {
+        const player = startingPlayer ?? (game && game.currentPlayer);
+        if (game && isCurrentPlayerAgent(player)) {
             setIsProcessing(true);
             const startTime = performance.now();
             moveByAgent(
                 game.board,
-                game.currentPlayer,
-                getAgentDepth(game.currentPlayer),
-                getAgentEvalConfig(game.currentPlayer)
+                player,
+                getAgentDepth(player),
+                getAgentEvalConfig(player)
             ).then(result => {
                 const endTime = performance.now();
                 const duration = endTime - startTime;
-                updateStats(game.currentPlayer, duration, result.allMovesCount, result.allRoutesCount, result.evaluatedRoutesCount);
+                updateStats(player, duration, result.allMovesCount, result.allRoutesCount, result.evaluatedRoutesCount);
                 setIsProcessing(false);
                 handleLaserResult(result);
             }).catch(err => {
@@ -307,12 +323,14 @@ const downloadPerTurnStats = () => {
         const player2Wins = wins.Player2 || 0;
         const draws = wins.Draw || 0;
 
-        const player1WinRate = totalGames > 0
-            ? ((player1Wins / totalGames) * 100).toFixed(1)
+        const decidedGames = player1Wins + player2Wins;
+
+        const player1WinRate = decidedGames > 0
+            ? ((player1Wins / decidedGames) * 100).toFixed(1)
             : "0.0";
 
-        const player2WinRate = totalGames > 0
-            ? ((player2Wins / totalGames) * 100).toFixed(1)
+        const player2WinRate = decidedGames > 0
+            ? ((player2Wins / decidedGames) * 100).toFixed(1)
             : "0.0";
 
         const drawRate = totalGames > 0
@@ -347,10 +365,12 @@ const downloadPerTurnStats = () => {
         URL.revokeObjectURL(url);
     };
 
-    const resetGame = () => {
+    const resetGame = (startingPlayer = null) => {
         turnCountRef.current = 0;
         player1StateWindowRef.current = [];
         player2StateWindowRef.current = [];
+        player1PosWindowRef.current = [];
+        player2PosWindowRef.current = [];
         setGameOver(false);
         setStats({
             player1Times: [],
@@ -375,7 +395,7 @@ const downloadPerTurnStats = () => {
         
         if (game) {
             setBoard(game.board);
-            setCurrentPlayer(game.currentPlayer);
+            setCurrentPlayer(startingPlayer ?? game.currentPlayer);
         }
     };
 
@@ -387,8 +407,9 @@ const downloadPerTurnStats = () => {
             setGamesCompleted(newGamesCompleted);
             
             if (newGamesCompleted < TOTAL_GAMES) {
-                resetGame();
-                handleStartGame();
+                const startingPlayer = newGamesCompleted % 2 === 0 ? "Player1" : "Player2";
+                resetGame(startingPlayer);
+                handleStartGame(startingPlayer);
             } else {
                 setAllGamesFinished(true);
                 console.log(`All ${TOTAL_GAMES} games completed!`);
